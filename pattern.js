@@ -1,0 +1,114 @@
+// === wallpaper rendering ===
+function drawWallpaperOn(pg, g) {
+  let a = g.motifScale;
+  let palette = palettes[g.palette];
+  let lattice;
+  if (g.group === "632")
+    lattice = (i, j) => createVector(i * a * sqrt(3) + (j % 2) * a * sqrt(3) / 2, j * a * 1.5);
+  if (g.group === "442")
+    lattice = (i, j) => createVector(i * a, j * a);
+  if (g.group === "333")
+    lattice = (i, j) => createVector(i * a + (j % 2) * a / 2, j * a * sqrt(3) / 2);
+  if (g.group === "2222")
+    lattice = (i, j) => createVector(i * a, j * a * 0.6);
+
+  let motif = createMotif(pg, g, a * 0.4, palette);
+  let n = 4;
+  for (let i = -n; i <= n; i++) {
+    for (let j = -n; j <= n; j++) {
+      let p = lattice(i, j);
+      pg.push();
+      pg.translate(p.x, p.y);
+      drawMotif(pg, motif);
+      pg.pop();
+    }
+  }
+}
+
+// === motif & shapes ===
+function createMotif(pg, g, s, palette) {
+  let motif = [];
+  let paletteSet = palettes[g.palette];
+
+  // Deterministic color selection per genome to avoid re-render color changes
+  function mulberry32(a) {
+    return function () {
+      let t = (a += 0x6D2B79F5) | 0;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  // Seed RNG purely from genome traits so previews and saved pool items match
+  const seedBase = genomeHash(g);
+  const rng = mulberry32(seedBase);
+
+  colorMode(HSB, 360, 100, 100);
+  let chosenCols = [];
+  for (let i = 0; i < g.numShapes; i++) {
+    // choose base palette index deterministically
+    const baseIdx = floor(rng() * paletteSet.length) % paletteSet.length;
+    let base = color(paletteSet[baseIdx]);
+    let h = (hue(base) + g.hueShift + (rng() * 16 - 8)) % 360;
+    let sat = constrain(saturation(base) + (rng() * 20 - 10), 40, 100);
+    let bri = constrain(brightness(base) + (rng() * 20 - 10), 40, 100);
+    chosenCols.push(color(h, sat, bri));
+  }
+  colorMode(RGB, 255);
+
+  let n = { "632": 6, "442": 4, "333": 3, "2222": 2 }[g.group];
+  for (let i = 0; i < g.numShapes; i++) {
+    let shape = g.shapes[i];
+    motif.push({
+      type: shape.type,
+      curveBias: shape.curveBias,
+      fatness: shape.fatness,
+      rotation: (TWO_PI / n) * i,
+      colour: chosenCols[i % chosenCols.length]
+    });
+  }
+  return motif;
+}
+
+function drawMotif(pg, motif) {
+  for (let s of motif) {
+    pg.push();
+    pg.fill(s.colour);
+    pg.rotate(s.rotation);
+    drawShapeVariant(pg, s.type, 40, s.curveBias, s.fatness);
+    pg.pop();
+  }
+}
+
+function drawShapeVariant(pg, type, s, bias, fat) {
+  pg.beginShape();
+  switch (type) {
+    case "petal":
+      pg.vertex(0, 0);
+      pg.bezierVertex(s * bias, -s * 0.3 * fat, s * 0.8, s * 0.2 * fat, s, 0);
+      pg.bezierVertex(s * 0.5, s * 0.6 * fat, s * 0.2, s * 0.5 * fat, 0, s * 0.8);
+      break;
+    case "leaf":
+      pg.vertex(0, 0);
+      pg.bezierVertex(s * 0.2, -s * 0.4, s * 0.8, -s * 0.1, s, 0);
+      pg.bezierVertex(s * 0.6, s * 0.4, s * 0.2, s * 0.3, 0, s * 0.8);
+      break;
+    case "blade":
+      pg.vertex(0, 0);
+      pg.bezierVertex(s * 0.3, -s * 0.7, s * 0.7, 0, s, 0);
+      pg.bezierVertex(s * 0.7, s * 0.6, s * 0.2, s * 0.6, 0, s * 0.8);
+      break;
+    case "drop":
+      pg.vertex(0, 0);
+      pg.bezierVertex(s * 0.2, -s * 0.2, s * 0.6, -s * 0.3, s, 0);
+      pg.bezierVertex(s * 0.4, s * 0.5, s * 0.2, s * 0.5, 0, s * 0.8);
+      break;
+    case "arc":
+      pg.vertex(0, 0);
+      for (let a = 0; a < PI / 2; a += PI / 12) {
+        pg.vertex(s * cos(a), s * sin(a));
+      }
+      break;
+  }
+  pg.endShape(CLOSE);
+}
