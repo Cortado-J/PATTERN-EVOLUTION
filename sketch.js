@@ -5,6 +5,9 @@ let palettes;
 let pool = []; // main list of all patterns
 let gen = 0;
 
+// Visible version tag for easy cache-busting verification
+const APP_VERSION = "v1.0.4";
+
 // Parent selection + control panel state
 let selectedParents = []; // array of genomes currently selected (max 4)
 let mutationRate = 0.25; // 0..1
@@ -54,6 +57,10 @@ function setup() {
   createCanvas(1000, 1000);
   angleMode(RADIANS);
   noLoop();
+  // Also show version in browser tab
+  if (typeof document !== 'undefined') {
+    document.title = `Pattern Evolution ${APP_VERSION}`;
+  }
 
   wq = width / 2;
   hq = (height * 0.7) / 2;
@@ -200,6 +207,42 @@ function drawScreen() {
   drawTitle();
   drawPoolGrid();
   drawControls();
+  
+  // Draw live previews in Generate mode
+  if (generateMode && liveOffspring) {
+    const previewY = height - panelHeight() + 60;
+    const previewW = width / 4;
+    const previewH = 100;
+    
+    // Draw previews
+    for (let i = 0; i < 4; i++) {
+      if (!liveOffspring[i]) continue;
+      
+      const px = i * previewW;
+      const py = previewY;
+      
+      // Draw selection highlight
+      if (liveOffspringSelected[i]) {
+        fill(100, 200, 100, 100);
+        noStroke();
+        rect(px, py, previewW, previewH);
+      }
+      
+      // Draw pattern preview
+      const pg = createGraphics(100, 100);
+      drawWallpaperOn(pg, liveOffspring[i]);
+      image(pg, px + 10, py + 10, 80, 80);
+      
+      // Draw border and selection indicator
+      noFill();
+      stroke(0);
+      rect(px, py, previewW, previewH);
+      
+      // Store hit region
+      if (!uiRegions.liveOffspring) uiRegions.liveOffspring = [];
+      uiRegions.liveOffspring[i] = { x: px, y: py, w: previewW, h: previewH };
+    }
+  }
 }
 
 function drawPoolGrid() {
@@ -354,10 +397,6 @@ function drawControls() {
     uiRegions.genBtn = null;
   }
 
-  // Generation counter
-  fill(0); noStroke(); textAlign(RIGHT, CENTER); textSize(14);
-  text(`Gen ${gen}`, gX - 10, gY + gH / 2);
-
   // Live offspring previews (always show in generate mode)
   if (!liveOffspring || liveOffspring.length !== 4) {
     liveOffspring = buildOffspringPreview();
@@ -415,19 +454,27 @@ function buildOffspringPreview() {
 function sendLiveOffspringToPool() {
   let added = 0;
   for (let i = 0; i < 4; i++) {
-    if (liveOffspringSelected[i]) {
+    if (liveOffspringSelected[i] && liveOffspring && liveOffspring[i]) {
       pool.push(withMeta(liveOffspring[i]));
       added++;
     }
   }
   if (added > 0) {
     for (const p of selectedParents) p.selectCount = (p.selectCount || 0) + 1;
+    enforceCapacity(GRID_COLS * GRID_ROWS, selectedParents);
+    gen++;
+    
+    // Show feedback
+    console.log(`Added ${added} patterns to the pool`);
+    
+    // Keep the same parents but generate new previews
+    liveOffspring = buildOffspringPreview();
+    liveOffspringSelected = [false, false, false, false];
+  } else {
+    // If nothing was selected, just generate new previews
+    liveOffspring = buildOffspringPreview();
+    liveOffspringSelected = [false, false, false, false];
   }
-  enforceCapacity(GRID_COLS * GRID_ROWS, selectedParents);
-  gen++;
-  // Reroll a new set for the next generation and clear selections
-  liveOffspring = null;
-  liveOffspringSelected = [false, false, false, false];
 }
 
 function drawTitle() {
@@ -442,7 +489,7 @@ function drawTitle() {
   fill(0);
   textAlign(CENTER, CENTER);
   textSize(22);
-  text("Pattern Evolution", width / 2, HEADER_H / 2);
+  text(`Pattern Evolution ${APP_VERSION}`, width / 2, HEADER_H / 2);
 }
 
 // modal flow removed in favor of live Generate mode
@@ -473,10 +520,13 @@ function enforceCapacity(capacity, preserveList = []) {
   }
 }
 
-// Preview flow removed
-
-// === interaction ===
 function mousePressed() {
+  // Check if we're in generate mode and clicking on save button
+  if (generateMode && uiRegions.saveBtn && pointInRect(mouseX, mouseY, uiRegions.saveBtn)) {
+    sendLiveOffspringToPool();
+    return drawScreen();
+  }
+  
   // Controls panel hit-testing
   if (uiRegions.genModeToggle && pointInRect(mouseX, mouseY, uiRegions.genModeToggle)) {
     generateMode = !generateMode;
@@ -485,9 +535,13 @@ function mousePressed() {
     liveOffspringSelected = [false, false, false, false];
     return drawScreen();
   }
+  
+  // Generate new previews button
   if (uiRegions.genBtn && pointInRect(mouseX, mouseY, uiRegions.genBtn)) {
     if (generateMode) {
-      sendLiveOffspringToPool();
+      // Generate new previews
+      liveOffspring = buildOffspringPreview();
+      liveOffspringSelected = [false, false, false, false];
     } else {
       // Enter generate mode if not already
       generateMode = true;
