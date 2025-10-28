@@ -1,14 +1,48 @@
 // === Interactive Wallpaper Evolution UI ===
 
-let population = [];
+let population = []; // deprecated: no longer used for display
 let palettes;
-let history = [];
+let pool = []; // main list of all patterns
 let gen = 0;
-let mode = "mutate"; // "mutate", "combine", "random"
-let selectedParents = [];
-let previewGenome = null;
+
+// Parent selection + control panel state
+let selectedParents = []; // array of genomes currently selected (max 4)
+let mutationRate = 0.25; // 0..1
+let combineMethod = "random-trait"; // "random-trait" | "average"
+let paletteOverride = -1; // -1 means mixed; otherwise index into selectedParents
+
+// Layout caches
 let wq, hq;
 let thumbH = 100;
+
+// Grid and layout constants
+const GRID_COLS = 8;
+const GRID_ROWS = 6; // changed from 8 to 6
+const HEADER_H = 48; // title bar height
+const PANEL_H = 80;  // control panel height
+
+// Modal offspring preview
+let offspringPreview = null; // array of 4 genomes (no metadata yet)
+let offspringSelected = [false, false, false, false];
+
+// UI hit regions (computed each frame)
+let uiRegions = {
+  genBtn: null,
+  rateMinus: null,
+  ratePlus: null,
+  methodRandom: null,
+  methodAverage: null,
+  paletteCycle: null,
+};
+
+let nextId = 1;
+
+function withMeta(g) {
+  g.id = nextId++;
+  g.createdAt = Date.now();
+  g.selectCount = 0;
+  return g;
+}
 
 function setup() {
   createCanvas(1000, 1000);
@@ -25,7 +59,8 @@ function setup() {
     vivid: ["#ffb703", "#fb8500", "#023047", "#8ecae6", "#219ebc"]
   };
 
-  for (let i = 0; i < 4; i++) population.push(randomGenome());
+  // Prime pool with 10 random patterns
+  for (let i = 0; i < 10; i++) pool.push(withMeta(randomGenome()));
   drawScreen();
 }
 
@@ -54,201 +89,481 @@ function randomGenome() {
 }
 
 // === evolution functions ===
-function mutateGenome(g) {
+function mutateGenome(g, rate = 0.25) {
+  // rate in [0,1], scaling mutation intensity and probability
   let m = structuredClone(g);
-  m.hueShift += random(-10, 10);
-  m.motifScale *= random(0.8, 1.3);
-  if (random() < 0.3) m.palette = random(Object.keys(palettes));
-  if (random() < 0.3) m.group = random(["632", "442", "333", "2222"]);
+  m.hueShift += random(-10, 10) * rate;
+  // scale multiplicative change towards 1 by rate
+  let scaleJitter = lerp(1, random(0.8, 1.3), rate);
+  m.motifScale = constrain(m.motifScale * scaleJitter, 20, 200);
+  if (random() < 0.3 * rate) m.palette = random(Object.keys(palettes));
+  if (random() < 0.3 * rate) m.group = random(["632", "442", "333", "2222"]);
   for (let s of m.shapes) {
-    if (random() < 0.5) s.fatness += random(-0.1, 0.1);
+    if (random() < 0.5) {
+      s.fatness = constrain(s.fatness + random(-0.1, 0.1) * rate, 0.1, 2);
+      s.curveBias = constrain((s.curveBias ?? 0.5) + random(-0.1, 0.1) * rate, 0, 1);
+    }
   }
+  m.numShapes = m.shapes.length;
   return m;
 }
 
 function combineGenomes(a, b) {
-  let c = structuredClone(a);
-  c.palette = random([a.palette, b.palette]);
-  c.group = random([a.group, b.group]);
-  c.hueShift = (a.hueShift + b.hueShift) / 2 + random(-10, 10);
-  c.motifScale = (a.motifScale + b.motifScale) / 2 * random(0.9, 1.1);
+  // Legacy 2-parent combine retained for history thumbnails or fallback
+  return mixGenomes([a, b], { method: "random-trait", mutationRate: 0.1, paletteOverride: -1 });
+}
+
+function mixGenomes(parents, options) {
+  const { method = "random-trait", mutationRate: mut = 0.1, paletteOverride: palIdx = -1 } = options || {};
+  const p = parents.filter(Boolean);
+  if (p.length === 0) return randomGenome();
+  if (p.length === 1) return mutateGenome(p[0], mut);
+
+  // Start from a random parent's clone
+  let c = structuredClone(random(p));
+
+  // Helpers
+  const pickParent = () => random(p);
+  const majority = (arr) => {
+    const counts = {};
+    let best = arr[0], maxC = 0;
+    for (const v of arr) {
+      counts[v] = (counts[v] || 0) + 1;
+      if (counts[v] > maxC) { maxC = counts[v]; best = v; }
+    }
+    return best;
+  };
+
+  // Palette
+  if (palIdx >= 0 && palIdx < p.length) c.palette = p[palIdx].palette;
+  else c.palette = method === "average" ? majority(p.map(x => x.palette)) : pickParent().palette;
+
+  // Group
+  c.group = method === "average" ? majority(p.map(x => x.group)) : pickParent().group;
+
+  // Numeric traits
+  if (method === "average") {
+    c.hueShift = p.map(x => x.hueShift).reduce((a, b) => a + b, 0) / p.length;
+    let ms = p.map(x => x.motifScale).reduce((a, b) => a + b, 0) / p.length;
+    c.motifScale = constrain(ms, 20, 200);
+    // rotation average naive
+    c.rotation = (p.map(x => x.rotation).reduce((a, b) => a + b, 0) / p.length) % TWO_PI;
+  } else {
+    const pr = pickParent();
+    c.hueShift = pr.hueShift;
+    c.motifScale = pr.motifScale;
+    c.rotation = pr.rotation;
+  }
+
+  // Shapes
+  let targetN = method === "average"
+    ? round(p.map(x => x.shapes.length).reduce((a, b) => a + b, 0) / p.length)
+    : pickParent().shapes.length;
+  targetN = constrain(targetN, 1, 8);
   c.shapes = [];
-  let n = floor(random(min(a.shapes.length, b.shapes.length), max(a.shapes.length, b.shapes.length) + 1));
-  for (let i = 0; i < n; i++) {
-    let parent = random([a, b]);
-    c.shapes.push(structuredClone(random(parent.shapes)));
+  for (let i = 0; i < targetN; i++) {
+    // Try to assemble shapes using i-th shape from random parent (if it exists), else random shape from a parent
+    let src = pickParent();
+    let base = src.shapes[i] || random(src.shapes);
+    let shp = structuredClone(base);
+    if (method === "average") {
+      // average comparable shapes at index i where available
+      let pool = p.map(pp => pp.shapes[i]).filter(Boolean);
+      if (pool.length > 1) {
+        // type: majority vote
+        const t = majority(pool.map(s => s.type));
+        const fb = pool.map(s => s.fatness ?? 0.5).reduce((a, b) => a + b, 0) / pool.length;
+        const cb = pool.map(s => s.curveBias ?? 0.5).reduce((a, b) => a + b, 0) / pool.length;
+        shp.type = t;
+        shp.fatness = fb;
+        shp.curveBias = cb;
+      }
+    }
+    c.shapes.push(shp);
   }
   c.numShapes = c.shapes.length;
+
+  // Light mutation to bring variation
+  c = mutateGenome(c, mut);
   return c;
 }
 
 // === draw ===
 function drawScreen() {
   background(245);
-  drawQuadrants();
-  drawHistory();
-  drawModeButtons();
-  if (previewGenome) drawPreview();
+  drawTitle();
+  drawPoolGrid();
+  drawControls();
+  if (offspringPreview) drawOffspringDialog();
 }
 
-function drawQuadrants() {
-  for (let q = 0; q < 4; q++) {
-    let g = population[q];
-    let x0 = (q % 2) * wq;
-    let y0 = floor(q / 2) * hq;
-    drawQuadrant(g, x0, y0, wq, hq);
+function drawPoolGrid() {
+  const cols = GRID_COLS;
+  const rows = GRID_ROWS;
+  const cellW = width / cols;
+  const gridH = height - HEADER_H - PANEL_H;
+  const cellH = gridH / rows;
+  for (let i = 0; i < min(pool.length, cols * rows); i++) {
+    const r = floor(i / cols);
+    const c = i % cols;
+    const x = c * cellW;
+    const y = HEADER_H + r * cellH;
+    const g = pool[i];
+    const isSel = selectedParents.includes(g);
+    drawQuadrant(g, x, y, cellW, cellH, isSel, i);
   }
 }
 
-function drawQuadrant(g, x, y, w, h) {
+function drawQuadrant(g, x, y, w, h, isSelected = false, idx = 0) {
   let pg = createGraphics(w, h);
   pg.background(240);
   pg.translate(w / 2, h / 2);
   drawWallpaperOn(pg, g);
   image(pg, x, y);
+  
+  // Border
   stroke(0);
   strokeWeight(4);
   noFill();
   rect(x, y, w, h);
+
+  // Selected marker: green inset border and checkbox (match dialog style)
+  if (isSelected) {
+    stroke("#2ecc71");
+    strokeWeight(4);
+    noFill();
+    rect(x + 3, y + 3, w - 6, h - 6, 6);
+  }
+
+  // Checkbox indicator in top-right
+  const pad = 6;
+  const cb = max(14, min(w, h) * 0.12);
+  noStroke();
+  fill(isSelected ? "#2ecc71" : 255);
+  rect(x + w - pad - cb, y + pad, cb, cb, 4);
+  stroke(0); noFill();
+  rect(x + w - pad - cb, y + pad, cb, cb, 4);
+
   fill(0);
   noStroke();
   textAlign(CENTER, CENTER);
   textSize(18);
-  text(g.group, x + w / 2, y + 20);
+  text(g.group, x + w / 2, y + 16);
 }
 
-function drawHistory() {
-  let y = height * 0.7;
-  let thumbW = width / 10;
-  for (let i = 0; i < history.length; i++) {
-    let g = history[i];
-    let pg = createGraphics(thumbW, thumbH);
-    pg.background(255);
-    pg.translate(pg.width / 2, pg.height / 2);
-    pg.scale(0.3);
-    drawWallpaperOn(pg, g);
-    image(pg, i * thumbW, y);
-    stroke(0);
-    noFill();
-    rect(i * thumbW, y, thumbW, thumbH);
-  }
-  fill(0);
-  textAlign(LEFT, CENTER);
-  textSize(18);
-  text(`Generation ${gen}`, 10, y + thumbH + 20);
-}
+// drawHistory removed in favor of full grid
 
-function drawModeButtons() {
-  let y = height * 0.9;
-  let labels = ["Mutate", "Combine", "Random"];
-  let wbtn = width / 3;
-  for (let i = 0; i < 3; i++) {
-    let x = i * wbtn;
-    fill(mode === labels[i].toLowerCase() ? "#ffb703" : 255);
-    stroke(0);
-    rect(x, y, wbtn, 50);
-    fill(0);
-    noStroke();
-    textAlign(CENTER, CENTER);
-    textSize(20);
-    text(labels[i], x + wbtn / 2, y + 25);
-  }
-}
-
-function drawPreview() {
-  let pg = createGraphics(300, 300);
-  pg.background(255);
-  pg.translate(pg.width / 2, pg.height / 2);
-  drawWallpaperOn(pg, previewGenome);
-  image(pg, width / 2 - 150, height / 2 - 150);
+function drawControls() {
+  // Bottom control panel
+  const h = PANEL_H;
+  const y = height - h;
+  // Panel background
+  noStroke();
+  fill(255);
+  rect(0, y, width, h);
   stroke(0);
   noFill();
-  rect(width / 2 - 150, height / 2 - 150, 300, 300);
+  rect(0, y, width, h);
+
+  // Selected count
+  noStroke();
   fill(0);
-  textAlign(CENTER, CENTER);
-  textSize(24);
-  text("Preview", width / 2, height / 2 - 180);
-  drawAcceptRejectButtons();
+  textAlign(LEFT, CENTER);
+  textSize(16);
+  text(`Selected parents: ${selectedParents.length}/4`, 12, y + 20);
+
+  // Mutation rate controls
+  const rateX = 12, rateY = y + 50;
+  textAlign(LEFT, CENTER);
+  textSize(14);
+  text(`Mutation: ${(mutationRate * 100).toFixed(0)}%`, rateX, rateY);
+  // - button
+  uiRegions.rateMinus = { x: rateX + 110, y: rateY - 12, w: 24, h: 24 };
+  uiRegions.ratePlus = { x: rateX + 140, y: rateY - 12, w: 24, h: 24 };
+  stroke(0); noFill(); rect(uiRegions.rateMinus.x, uiRegions.rateMinus.y, 24, 24); rect(uiRegions.ratePlus.x, uiRegions.ratePlus.y, 24, 24);
+  noStroke(); fill(0); textAlign(CENTER, CENTER); text("-", uiRegions.rateMinus.x + 12, uiRegions.rateMinus.y + 12); text("+", uiRegions.ratePlus.x + 12, uiRegions.ratePlus.y + 12);
+
+  // Method toggles
+  const mBaseX = width / 2 - 180, mY = y + 20, mW = 160, mH = 28;
+  uiRegions.methodRandom = { x: mBaseX, y: mY, w: mW, h: mH };
+  uiRegions.methodAverage = { x: mBaseX + mW + 12, y: mY, w: mW, h: mH };
+  function drawToggle(r, label, active) {
+    stroke(0); fill(active ? "#ffb703" : 255); rect(r.x, r.y, r.w, r.h, 6);
+    noStroke(); fill(0); textAlign(CENTER, CENTER); textSize(14); text(label, r.x + r.w / 2, r.y + r.h / 2);
+  }
+  drawToggle(uiRegions.methodRandom, "Random per trait", combineMethod === "random-trait");
+  drawToggle(uiRegions.methodAverage, "Average traits", combineMethod === "average");
+
+  // Palette override cycle
+  const palX = width / 2 - 180, palY = y + 50, palW = 240, palH = 24;
+  uiRegions.paletteCycle = { x: palX, y: palY, w: palW, h: palH };
+  stroke(0); fill(255); rect(palX, palY, palW, palH, 6);
+  noStroke(); fill(0); textAlign(CENTER, CENTER); textSize(13);
+  let palLabel = "Palette: Mix";
+  if (paletteOverride >= 0 && paletteOverride < selectedParents.length) palLabel = `Palette: P${paletteOverride + 1}`;
+  text(palLabel, palX + palW / 2, palY + palH / 2);
+
+  // Generate button
+  const gW = 160, gH = 40, gX = width - gW - 16, gY = y + (h - gH) / 2;
+  uiRegions.genBtn = { x: gX, y: gY, w: gW, h: gH };
+  stroke(0); fill("#06d6a0"); rect(gX, gY, gW, gH, 6);
+  noStroke(); fill(255); textAlign(CENTER, CENTER); textSize(18); text("Generate", gX + gW / 2, gY + gH / 2);
+
+  // Generation counter
+  fill(0); noStroke(); textAlign(RIGHT, CENTER); textSize(14);
+  text(`Gen ${gen}`, gX - 10, gY + gH / 2);
 }
 
-function drawAcceptRejectButtons() {
-  let bx = width / 2 - 100;
-  let by = height / 2 + 180;
-  fill("#06d6a0");
-  rect(bx, by, 80, 40);
-  fill("#ef233c");
-  rect(bx + 140, by, 80, 40);
+function drawTitle() {
+  // Title bar at the top
+  noStroke();
   fill(255);
+  rect(0, 0, width, HEADER_H);
+  stroke(0);
+  noFill();
+  rect(0, 0, width, HEADER_H);
+  noStroke();
+  fill(0);
   textAlign(CENTER, CENTER);
-  textSize(18);
-  text("Accept", bx + 40, by + 20);
-  text("Reject", bx + 180, by + 20);
+  textSize(22);
+  text("Pattern Evolution", width / 2, HEADER_H / 2);
 }
+
+function drawOffspringDialog() {
+  // Modal overlay
+  noStroke();
+  fill(0, 120);
+  rect(0, 0, width, height);
+
+  // Dialog box
+  const boxW = 760, boxH = 560;
+  const bx = (width - boxW) / 2;
+  const by = (height - boxH) / 2;
+  fill(255);
+  stroke(0);
+  rect(bx, by, boxW, boxH, 10);
+
+  // Title
+  noStroke(); fill(0); textAlign(CENTER, CENTER); textSize(20);
+  text("Select offspring to add to pool", bx + boxW / 2, by + 24);
+
+  // 2x2 grid of previews
+  const gw = 320, gh = 220, pad = 20;
+  const startX = bx + pad;
+  const startY = by + 50;
+  for (let i = 0; i < 4; i++) {
+    const r = floor(i / 2), c = i % 2;
+    const x = startX + c * (gw + pad);
+    const y = startY + r * (gh + pad);
+    // Render preview
+    const pg = createGraphics(gw, gh);
+    pg.background(240);
+    pg.translate(pg.width / 2, pg.height / 2);
+    pg.scale(0.6);
+    drawWallpaperOn(pg, offspringPreview[i]);
+    image(pg, x, y);
+    // Border and selection highlight
+    stroke(0); noFill(); rect(x, y, gw, gh, 6);
+    if (offspringSelected[i]) {
+      stroke("#2ecc71"); strokeWeight(4); noFill(); rect(x + 3, y + 3, gw - 6, gh - 6, 6); strokeWeight(1);
+    }
+    // Checkbox indicator
+    noStroke(); fill(offspringSelected[i] ? "#2ecc71" : 255);
+    rect(x + gw - 26, y + 6, 20, 20, 4);
+    stroke(0); noFill(); rect(x + gw - 26, y + 6, 20, 20, 4);
+  }
+
+  // Buttons
+  const btnW = 160, btnH = 40;
+  const addX = bx + boxW - btnW - 20, addY = by + boxH - btnH - 16;
+  const cancelX = addX - btnW - 12, cancelY = addY;
+  // Add to pool
+  stroke(0); fill("#06d6a0"); rect(addX, addY, btnW, btnH, 8);
+  noStroke(); fill(255); textAlign(CENTER, CENTER); textSize(18); text("Add to pool", addX + btnW / 2, addY + btnH / 2);
+  // Cancel
+  stroke(0); fill(255); rect(cancelX, cancelY, btnW, btnH, 8);
+  noStroke(); fill(0); textSize(18); text("Cancel", cancelX + btnW / 2, cancelY + btnH / 2);
+
+  // Cache clickable regions
+  uiRegions.offspring = [];
+  for (let i = 0; i < 4; i++) {
+    const r = floor(i / 2), c = i % 2;
+    const x = startX + c * (gw + pad);
+    const y = startY + r * (gh + pad);
+    uiRegions.offspring[i] = { x, y, w: gw, h: gh };
+  }
+  uiRegions.addBtn = { x: addX, y: addY, w: btnW, h: btnH };
+  uiRegions.cancelBtn = { x: cancelX, y: cancelY, w: btnW, h: btnH };
+}
+
+function handleOffspringDialogClick() {
+  // Toggle selection on thumbnails
+  if (uiRegions.offspring) {
+    for (let i = 0; i < 4; i++) {
+      const r = uiRegions.offspring[i];
+      if (r && pointInRect(mouseX, mouseY, r)) {
+        offspringSelected[i] = !offspringSelected[i];
+        drawScreen();
+        return true;
+      }
+    }
+  }
+  // Buttons
+  if (uiRegions.addBtn && pointInRect(mouseX, mouseY, uiRegions.addBtn)) {
+    commitOffspringToPool();
+    drawScreen();
+    return true;
+  }
+  if (uiRegions.cancelBtn && pointInRect(mouseX, mouseY, uiRegions.cancelBtn)) {
+    offspringPreview = null;
+    drawScreen();
+    return true;
+  }
+  return false;
+}
+
+function commitOffspringToPool() {
+  let added = 0;
+  for (let i = 0; i < 4; i++) {
+    if (offspringSelected[i]) {
+      pool.push(withMeta(offspringPreview[i]));
+      added++;
+    }
+  }
+
+  // Increment parent selection count once if any child accepted
+  if (added > 0) {
+    for (const p of selectedParents) p.selectCount = (p.selectCount || 0) + 1;
+  }
+
+  // Enforce capacity (6x8 = 48)
+  enforceCapacity(48, selectedParents);
+
+  // Clear selection and palette override; close dialog; increment generation
+  selectedParents = [];
+  paletteOverride = -1;
+  offspringPreview = null;
+  gen++;
+}
+
+function enforceCapacity(capacity, preserveList = []) {
+  if (pool.length <= capacity) return;
+  const toRemove = pool.length - capacity;
+  const preserve = new Set(preserveList);
+  const candidates = pool.filter(g => !preserve.has(g));
+  candidates.sort((a, b) => {
+    const ca = (a.selectCount || 0) - (b.selectCount || 0);
+    if (ca !== 0) return ca;
+    return (a.createdAt || 0) - (b.createdAt || 0);
+  });
+  let removed = 0;
+  for (let i = 0; i < candidates.length && removed < toRemove; i++) {
+    const g = candidates[i];
+    const idx = pool.indexOf(g);
+    if (idx >= 0) { pool.splice(idx, 1); removed++; }
+  }
+  if (removed < toRemove) {
+    pool.sort((a, b) => {
+      const ca = (a.selectCount || 0) - (b.selectCount || 0);
+      if (ca !== 0) return ca;
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    });
+    pool.splice(0, toRemove - removed);
+  }
+}
+
+// Preview flow removed
 
 // === interaction ===
 function mousePressed() {
-  if (previewGenome) {
-    // accept/reject buttons
-    let bx = width / 2 - 100;
-    let by = height / 2 + 180;
-    if (mouseY > by && mouseY < by + 40) {
-      if (mouseX > bx && mouseX < bx + 80) acceptPreview();
-      if (mouseX > bx + 140 && mouseX < bx + 220) rejectPreview();
+  // If offspring dialog is open, handle dialog interactions first
+  if (offspringPreview) {
+    if (handleOffspringDialogClick()) return;
+  }
+
+  // Controls panel hit-testing
+  if (uiRegions.genBtn && pointInRect(mouseX, mouseY, uiRegions.genBtn)) {
+    generateOffspring();
+    return drawScreen();
+  }
+  if (uiRegions.rateMinus && pointInRect(mouseX, mouseY, uiRegions.rateMinus)) {
+    mutationRate = constrain(mutationRate - 0.05, 0, 1);
+    return drawScreen();
+  }
+  if (uiRegions.ratePlus && pointInRect(mouseX, mouseY, uiRegions.ratePlus)) {
+    mutationRate = constrain(mutationRate + 0.05, 0, 1);
+    return drawScreen();
+  }
+  if (uiRegions.methodRandom && pointInRect(mouseX, mouseY, uiRegions.methodRandom)) {
+    combineMethod = "random-trait";
+    return drawScreen();
+  }
+  if (uiRegions.methodAverage && pointInRect(mouseX, mouseY, uiRegions.methodAverage)) {
+    combineMethod = "average";
+    return drawScreen();
+  }
+  if (uiRegions.paletteCycle && pointInRect(mouseX, mouseY, uiRegions.paletteCycle)) {
+    if (selectedParents.length === 0) {
+      paletteOverride = -1;
+    } else {
+      if (paletteOverride === -1) paletteOverride = 0;
+      else if (paletteOverride < selectedParents.length - 1) paletteOverride++;
+      else paletteOverride = -1; // cycle back to Mix
     }
-    return;
+    return drawScreen();
   }
 
-  // mode buttons
-  let ybtn = height * 0.9;
-  if (mouseY > ybtn && mouseY < ybtn + 50) {
-    let idx = floor(mouseX / (width / 3));
-    mode = ["mutate", "combine", "random"][idx];
-    redraw();
-    return;
-  }
-
-  // top 4 quadrants
-  if (mouseY < height * 0.7) {
-    let qx = floor(mouseX / wq);
-    let qy = floor(mouseY / hq);
-    let index = qx + 2 * qy;
-    if (index < population.length) handleSelection(population[index]);
-  }
-
-  // history thumbnails
-  let yhist = height * 0.7;
-  if (mouseY > yhist && mouseY < yhist + thumbH) {
-    let idx = floor(mouseX / (width / 10));
-    if (idx < history.length) handleSelection(history[idx]);
-  }
-}
-
-function handleSelection(g) {
-  if (mode === "mutate") previewGenome = mutateGenome(g);
-  else if (mode === "combine") {
-    selectedParents.push(g);
-    if (selectedParents.length === 2) {
-      previewGenome = combineGenomes(selectedParents[0], selectedParents[1]);
-      selectedParents = [];
+  // Grid selection
+  const cols = GRID_COLS;
+  const rows = GRID_ROWS;
+  if (mouseY >= HEADER_H && mouseY < height - PANEL_H) {
+    const cellW = width / cols;
+    const cellH = (height - HEADER_H - PANEL_H) / rows;
+    const c = floor(mouseX / cellW);
+    const r = floor((mouseY - HEADER_H) / cellH);
+    const idx = r * cols + c;
+    if (idx >= 0 && idx < pool.length) {
+      toggleParentSelection(pool[idx]);
+      return drawScreen();
     }
-  } else if (mode === "random") previewGenome = randomGenome();
-  drawScreen();
+  }
 }
 
-function acceptPreview() {
-  population = [];
-  for (let i = 0; i < 4; i++) population.push(mutateGenome(previewGenome));
-  history.push(previewGenome);
-  if (history.length > 10) history.splice(0, history.length - 10);
-  previewGenome = null;
-  gen++;
-  drawScreen();
+function pointInRect(px, py, r) {
+  return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
 }
 
-function rejectPreview() {
-  previewGenome = null;
-  drawScreen();
+function toggleParentSelection(g) {
+  let i = selectedParents.indexOf(g);
+  if (i >= 0) selectedParents.splice(i, 1);
+  else if (selectedParents.length < 4) selectedParents.push(g);
 }
+
+// Generate 4 offspring based on current parent selection and settings
+function generateOffspring() {
+  let children = [];
+  if (selectedParents.length === 0) {
+    for (let i = 0; i < 4; i++) children.push(randomGenome());
+  } else if (selectedParents.length === 1) {
+    for (let i = 0; i < 4; i++) children.push(mutateGenome(selectedParents[0], mutationRate));
+  } else {
+    for (let i = 0; i < 4; i++) {
+      children.push(
+        mixGenomes(selectedParents, {
+          method: combineMethod,
+          mutationRate: mutationRate * 0.5,
+          paletteOverride: paletteOverride,
+        })
+      );
+    }
+  }
+
+  // Open modal with these children (none selected initially)
+  offspringPreview = children;
+  offspringSelected = [false, false, false, false];
+}
+
+// Preview flow removed in favor of immediate generation
 
 // === wallpaper rendering ===
 function drawWallpaperOn(pg, g) {
@@ -281,13 +596,28 @@ function drawWallpaperOn(pg, g) {
 function createMotif(pg, g, s, palette) {
   let motif = [];
   let paletteSet = palettes[g.palette];
+
+  // Deterministic color selection per genome to avoid re-render color changes
+  function mulberry32(a) {
+    return function () {
+      let t = (a += 0x6D2B79F5) | 0;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const seedBase = ((g.id || 0) ^ (g.createdAt || 0)) >>> 0;
+  const rng = mulberry32(seedBase);
+
   colorMode(HSB, 360, 100, 100);
   let chosenCols = [];
   for (let i = 0; i < g.numShapes; i++) {
-    let base = color(random(paletteSet));
-    let h = (hue(base) + g.hueShift + random(-8, 8)) % 360;
-    let sat = constrain(saturation(base) + random(-10, 10), 40, 100);
-    let bri = constrain(brightness(base) + random(-10, 10), 40, 100);
+    // choose base palette index deterministically
+    const baseIdx = floor(rng() * paletteSet.length) % paletteSet.length;
+    let base = color(paletteSet[baseIdx]);
+    let h = (hue(base) + g.hueShift + (rng() * 16 - 8)) % 360;
+    let sat = constrain(saturation(base) + (rng() * 20 - 10), 40, 100);
+    let bri = constrain(brightness(base) + (rng() * 20 - 10), 40, 100);
     chosenCols.push(color(h, sat, bri));
   }
   colorMode(RGB, 255);
