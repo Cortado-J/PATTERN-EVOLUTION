@@ -70,20 +70,40 @@ function drawControls() {
   const y = height - h;
   uiRegions.actionButtons = {};
 
-  // Panel background
-  noStroke();
-  fill(255);
-  rect(0, y, width, h);
-  stroke(0);
-  noFill();
-  rect(0, y, width, h);
+  // Align control panel with pool width and styling
+  const cols = GRID_COLS;
+  const rows = GRID_ROWS;
+  const gridH = height - HEADER_H - panelHeight();
+  const cellWBase = width / cols;
+  const cellHBase = gridH / rows;
+  const s = min(cellWBase, cellHBase);
+  const gap = max(4, s * 0.08);
+  const tile = max(10, s - gap);
+  const gridOriginX = (width - cols * s) / 2;
+  const panelX = gridOriginX + (s - tile) / 2;
+  const panelWidth = tile + (cols - 1) * s;
+  const panelTop = y + 8;
+  const panelHeightInner = h - 16;
+  const panelPadding = 16;
+  const innerX = panelX + panelPadding;
+  const innerY = panelTop + panelPadding;
+  const innerW = panelWidth - panelPadding * 2;
+  const innerH = panelHeightInner - panelPadding * 2;
 
-  const padding = 16;
-  const buttonW = 160;
-  const buttonH = 44;
-  const buttonGap = 12;
-  const columnX = padding;
-  let buttonY = y + padding;
+  noStroke();
+  fill(240);
+  rect(panelX, panelTop, panelWidth, panelHeightInner, 8);
+  stroke(0);
+  strokeWeight(4);
+  noFill();
+  rect(panelX, panelTop, panelWidth, panelHeightInner, 4);
+  strokeWeight(1);
+
+  const buttonW = min(160, innerW * 0.35);
+  const buttonH = 40;
+  const buttonGap = 8;
+  const columnX = innerX;
+  let buttonY = innerY;
 
   // Action buttons column
   const actions = [
@@ -108,13 +128,14 @@ function drawControls() {
   }
 
   // Preview area
-  const previewX = columnX + buttonW + 32;
-  const previewY = y + padding;
-  const previewW = width - previewX - padding;
-  const previewH = h - padding * 2;
+  const previewSpacing = max(16, buttonW * 0.15);
+  const previewX = columnX + buttonW + previewSpacing;
+  const previewY = innerY;
+  const previewW = innerX + innerW - previewX;
+  const previewH = innerH;
 
   stroke(0);
-  fill(245);
+  fill(240);
   rect(previewX, previewY, previewW, previewH, 8);
 
   noStroke();
@@ -144,6 +165,11 @@ function drawControls() {
       if (scaleFactor !== 1) pg.scale(scaleFactor);
       drawWallpaperOn(pg, item.genome);
       image(pg, artX, artY);
+      stroke(0);
+      strokeWeight(4);
+      noFill();
+      rect(artX, artY, artSize, artSize, 4);
+      strokeWeight(1);
     }
   } else {
     text("Choose an action or press R/C/A/S to preview.", previewX + 16, infoY);
