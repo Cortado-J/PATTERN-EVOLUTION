@@ -19,7 +19,7 @@ let wq, hq;
 let thumbH = 100;
 
 // Grid and layout constants
-const GRID_COLS = 8;
+const GRID_COLS = 6;
 const GRID_ROWS = 6; // changed from 8 to 6
 const HEADER_H = 48; // title bar height
 const PANEL_H = 80;  // control panel height
@@ -58,7 +58,7 @@ function setup() {
     vivid: ["#ffb703", "#fb8500", "#023047", "#8ecae6", "#219ebc"]
   };
 
-  // Prime pool with 10 random patterns
-  for (let i = 0; i < 10; i++) pool.push(withMeta(randomGenome()));
+  // Prime pool with 6 random patterns
+  for (let i = 0; i < 6; i++) pool.push(withMeta(randomGenome()));
   drawScreen();
 }

@@ -13,17 +13,22 @@ function drawScreen() {
 function drawPoolGrid() {
   const cols = GRID_COLS;
   const rows = GRID_ROWS;
-  const cellW = width / cols;
   const gridH = height - HEADER_H - panelHeight();
-  const cellH = gridH / rows;
+  const cellWBase = width / cols;
+  const cellHBase = gridH / rows;
+  const s = min(cellWBase, cellHBase);
+  const gap = max(4, s * 0.08);
+  const tile = max(10, s - gap);
+  const originX = (width - cols * s) / 2;
+  const originY = HEADER_H + (gridH - rows * s) / 2;
   for (let i = 0; i < min(pool.length, cols * rows); i++) {
     const r = floor(i / cols);
     const c = i % cols;
-    const x = c * cellW;
-    const y = HEADER_H + r * cellH;
+    const x = originX + c * s + (s - tile) / 2;
+    const y = originY + r * s + (s - tile) / 2;
     const g = pool[i];
     const isSel = selectedParents.includes(g);
-    drawQuadrant(g, x, y, cellW, cellH, isSel, i);
+    drawQuadrant(g, x, y, tile, tile, isSel, i);
   }
 }
 
@@ -59,11 +64,12 @@ function drawQuadrant(g, x, y, w, h, isSelected = false, idx = 0) {
     rect(x + w - pad - cb, y + pad, cb, cb, 4);
   }
 
-  fill(0);
-  noStroke();
-  textAlign(CENTER, CENTER);
-  textSize(18);
-  text(g.group, x + w / 2, y + 16);
+  // Text label retained for possible reuse; comment out to hide numbers for now.
+  // fill(0);
+  // noStroke();
+  // textAlign(CENTER, CENTER);
+  // textSize(18);
+  // text(g.group, x + w / 2, y + 16);
 }
 
 function drawControls() {
@@ -280,18 +286,30 @@ function mousePressed() {
   const cols = GRID_COLS;
   const rows = GRID_ROWS;
   if (mouseY >= HEADER_H && mouseY < height - panelHeight()) {
-    const cellW = width / cols;
-    const cellH = (height - HEADER_H - panelHeight()) / rows;
-    const c = floor(mouseX / cellW);
-    const r = floor((mouseY - HEADER_H) / cellH);
-    const idx = r * cols + c;
-    if (idx >= 0 && idx < pool.length) {
-      if (generateMode) {
-        toggleParentSelection(pool[idx]);
-        // changing parents should rebuild previews
-        liveOffspring = null;
+    const gridH = height - HEADER_H - panelHeight();
+    const cellWBase = width / cols;
+    const cellHBase = gridH / rows;
+    const s = min(cellWBase, cellHBase);
+    const gap = max(4, s * 0.08);
+    const originX = (width - cols * s) / 2;
+    const originY = HEADER_H + (gridH - rows * s) / 2;
+    if (mouseX >= originX && mouseX < originX + cols * s && mouseY >= originY && mouseY < originY + rows * s) {
+      const c = floor((mouseX - originX) / s);
+      const r = floor((mouseY - originY) / s);
+      const localX = (mouseX - originX) - c * s;
+      const localY = (mouseY - originY) - r * s;
+      if (localX < gap / 2 || localX > s - gap / 2 || localY < gap / 2 || localY > s - gap / 2) {
+        return; // click fell in the gutter between tiles
       }
-      return drawScreen();
+      const idx = r * cols + c;
+      if (idx >= 0 && idx < pool.length) {
+        if (generateMode) {
+          toggleParentSelection(pool[idx]);
+          // changing parents should rebuild previews
+          liveOffspring = null;
+        }
+        return drawScreen();
+      }
     }
   }
 
