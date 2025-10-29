@@ -216,19 +216,38 @@ function mousePressed() {
   const layout = calculatePoolLayout();
   const metrics = getPoolScrollbarMetrics(layout);
 
-  if (layout.maxScroll > 0 && pointInRect(mouseX, mouseY, metrics.track)) {
-    if (pointInRect(mouseX, mouseY, metrics.knob)) {
-      poolScrollDragging = true;
-      poolScrollDragOffset = mouseY - metrics.knob.y;
-    } else if (metrics.knobTravel > 0) {
-      const relative = mouseY - metrics.track.y - metrics.knob.h / 2;
-      const ratio = constrain(relative / metrics.knobTravel, 0, 1);
-      poolScroll = ratio * layout.maxScroll;
-      poolScrollDragging = true;
-      poolScrollDragOffset = metrics.knob.h / 2;
+  if (pointInRect(mouseX, mouseY, metrics.bounds)) {
+    if (layout.maxScroll <= 0) return;
+
+    if (pointInRect(mouseX, mouseY, metrics.topButton)) {
+      poolScroll = max(0, poolScroll - metrics.rowStep);
       drawScreen();
+      return;
     }
-    return;
+
+    if (pointInRect(mouseX, mouseY, metrics.bottomButton)) {
+      poolScroll = min(layout.maxScroll, poolScroll + metrics.rowStep);
+      drawScreen();
+      return;
+    }
+
+    if (pointInRect(mouseX, mouseY, metrics.knob)) {
+      if (metrics.knobTravel > 0) {
+        poolScrollDragging = true;
+        poolScrollDragOffset = mouseY - metrics.knob.y;
+      }
+      return;
+    }
+
+    if (pointInRect(mouseX, mouseY, metrics.track)) {
+      if (mouseY < metrics.knob.y) {
+        poolScroll = max(0, poolScroll - metrics.pageStep);
+      } else if (mouseY > metrics.knob.y + metrics.knob.h) {
+        poolScroll = min(layout.maxScroll, poolScroll + metrics.pageStep);
+      }
+      drawScreen();
+      return;
+    }
   }
 
   handlePoolClick(mouseX, mouseY);
@@ -266,9 +285,12 @@ function keyTyped() {
 
 function mouseWheel(event) {
   const layout = calculatePoolLayout();
+  const metrics = getPoolScrollbarMetrics(layout);
   const withinPoolY = mouseY >= layout.viewportTop && mouseY <= layout.viewportTop + layout.viewportHeight;
-  const withinPoolX = mouseX >= layout.originX && mouseX <= layout.originX + layout.cols * layout.cellSize;
-  if (!withinPoolX || !withinPoolY || layout.maxScroll <= 0) return;
+  const withinPoolX = mouseX >= layout.originX && mouseX <= layout.originX + layout.viewportWidth;
+  const withinScrollbar = pointInRect(mouseX, mouseY, metrics.bounds);
+  if (!(withinPoolX && withinPoolY) && !withinScrollbar) return;
+  if (layout.maxScroll <= 0) return;
 
   const delta = event.delta;
   if (delta === 0) return;

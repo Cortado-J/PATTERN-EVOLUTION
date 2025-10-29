@@ -9,13 +9,22 @@ function calculatePoolLayout() {
   const cols = GRID_COLS;
   const visibleRows = GRID_ROWS;
   const gridH = height - HEADER_H - panelHeight();
-  const cellWBase = width / cols;
   const cellHBase = gridH / visibleRows;
-  const cellSize = min(cellWBase, cellHBase);
+  const scrollbarWidth = 24;
+  const minScrollbarGap = 14;
+  const gridAvailableWidth = max(120, width - scrollbarWidth - minScrollbarGap);
+
+  let cellSize = min(width / cols, cellHBase);
+  cellSize = min(cellSize, gridAvailableWidth / cols);
+
   const gap = max(4, cellSize * 0.08);
   const tileBase = max(10, cellSize - gap);
   const tile = max(10, tileBase * TILE_SCALE);
-  const originX = (width - cols * cellSize) / 2;
+  const viewportWidth = cols * cellSize;
+  const scrollbarGapMax = max(minScrollbarGap, width - viewportWidth - scrollbarWidth);
+  const scrollbarGap = constrain(max(gap, minScrollbarGap), minScrollbarGap, scrollbarGapMax);
+  const totalWidth = viewportWidth + scrollbarGap + scrollbarWidth;
+  const originX = (width - totalWidth) / 2;
   const originYBase = HEADER_H + gap / 2;
   const maxOriginY = HEADER_H + gridH - visibleRows * cellSize;
   const viewportTop = min(originYBase, maxOriginY);
@@ -23,8 +32,7 @@ function calculatePoolLayout() {
   const totalRows = max(1, ceil(pool.length / cols));
   const contentHeight = totalRows * cellSize;
   const maxScroll = max(0, contentHeight - viewportHeight);
-  const scrollbarWidth = 12;
-  const scrollbarX = originX + cols * cellSize + gap * 0.4;
+  const scrollbarX = originX + viewportWidth + scrollbarGap;
 
   return {
     cols,
@@ -35,20 +43,35 @@ function calculatePoolLayout() {
     originX,
     viewportTop,
     viewportHeight,
+    viewportWidth,
     totalRows,
     contentHeight,
     maxScroll,
     scrollbarWidth,
+    scrollbarGap,
     scrollbarX,
   };
 }
 
 function getPoolScrollbarMetrics(layout) {
-  const track = {
+  const buttonHeight = max(20, min(36, layout.viewportHeight * 0.12));
+  const topButton = {
     x: layout.scrollbarX,
     y: layout.viewportTop,
     w: layout.scrollbarWidth,
-    h: layout.viewportHeight,
+    h: buttonHeight,
+  };
+  const bottomButton = {
+    x: layout.scrollbarX,
+    y: layout.viewportTop + layout.viewportHeight - buttonHeight,
+    w: layout.scrollbarWidth,
+    h: buttonHeight,
+  };
+  const track = {
+    x: layout.scrollbarX,
+    y: topButton.y + topButton.h,
+    w: layout.scrollbarWidth,
+    h: layout.viewportHeight - topButton.h - bottomButton.h,
   };
 
   const knobHeight = layout.maxScroll <= 0
@@ -60,6 +83,14 @@ function getPoolScrollbarMetrics(layout) {
     : track.y + knobTravel * (poolScroll / layout.maxScroll || 0);
 
   return {
+    bounds: {
+      x: layout.scrollbarX,
+      y: layout.viewportTop,
+      w: layout.scrollbarWidth,
+      h: layout.viewportHeight,
+    },
+    topButton,
+    bottomButton,
     track,
     knob: {
       x: track.x,
@@ -68,6 +99,8 @@ function getPoolScrollbarMetrics(layout) {
       h: knobHeight,
     },
     knobTravel,
+    rowStep: layout.cellSize,
+    pageStep: max(layout.cellSize, layout.viewportHeight - layout.cellSize),
   };
 }
 
@@ -92,6 +125,19 @@ function drawPoolGrid() {
   const remainingRows = max(0, layout.totalRows - firstRow);
   const rowsToDraw = min(layout.visibleRows + 1, remainingRows);
 
+  push();
+  noStroke();
+  fill(245);
+  rect(layout.originX, layout.viewportTop, layout.viewportWidth, layout.viewportHeight);
+
+  const ctx = typeof drawingContext !== "undefined" ? drawingContext : null;
+  if (ctx && typeof ctx.save === "function") {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(layout.originX, layout.viewportTop, layout.viewportWidth, layout.viewportHeight);
+    ctx.clip();
+  }
+
   for (let row = 0; row < rowsToDraw; row++) {
     const globalRow = firstRow + row;
     const yBase = layout.viewportTop + row * layout.cellSize - rowOffset;
@@ -109,6 +155,11 @@ function drawPoolGrid() {
     }
   }
 
+  if (ctx && typeof ctx.restore === "function") {
+    ctx.restore();
+  }
+  pop();
+
   drawPoolScrollbar(layout);
 }
 
@@ -120,15 +171,44 @@ function drawPoolScrollbar(layout) {
   push();
   stroke(0);
   strokeWeight(2);
-  fill(230);
-  rect(track.x, track.y, track.w, track.h, track.w / 2);
+  fill(235);
+  rect(metrics.bounds.x, metrics.bounds.y, metrics.bounds.w, metrics.bounds.h, 6);
 
-  if (layout.maxScroll <= 0) {
-    fill(120);
-    rect(track.x, track.y, track.w, track.h, track.w / 2);
+  // Buttons
+  fill(220);
+  rect(metrics.topButton.x, metrics.topButton.y, metrics.topButton.w, metrics.topButton.h, 6, 6, 0, 0);
+  rect(metrics.bottomButton.x, metrics.bottomButton.y, metrics.bottomButton.w, metrics.bottomButton.h, 0, 0, 6, 6);
+  fill(70);
+  const arrowPadding = metrics.topButton.h * 0.3;
+  const arrowMidX = metrics.topButton.x + metrics.topButton.w / 2;
+  triangle(
+    arrowMidX,
+    metrics.topButton.y + arrowPadding,
+    arrowMidX - (metrics.topButton.w / 3),
+    metrics.topButton.y + metrics.topButton.h - arrowPadding,
+    arrowMidX + (metrics.topButton.w / 3),
+    metrics.topButton.y + metrics.topButton.h - arrowPadding
+  );
+  const bottomArrowPadding = arrowPadding;
+  triangle(
+    arrowMidX,
+    metrics.bottomButton.y + metrics.bottomButton.h - bottomArrowPadding,
+    arrowMidX - (metrics.bottomButton.w / 3),
+    metrics.bottomButton.y + bottomArrowPadding,
+    arrowMidX + (metrics.bottomButton.w / 3),
+    metrics.bottomButton.y + bottomArrowPadding
+  );
+
+  // Track background
+  fill(210);
+  rect(track.x, track.y, track.w, track.h, 6);
+
+  if (layout.maxScroll <= 0 || knob.h >= track.h) {
+    fill(160);
+    rect(track.x, track.y, track.w, track.h, 6);
   } else {
-    fill(80);
-    rect(knob.x, knob.y, knob.w, knob.h, track.w / 2);
+    fill(90);
+    rect(knob.x, knob.y, knob.w, knob.h, 6);
   }
 
   pop();
