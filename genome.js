@@ -38,10 +38,16 @@ function randomShape(template = null, style = "mixed") {
   const fatMax = style === "straight" ? 1.0 : 1.6;
   const baseCurve = template?.curveBias ?? random(curveMin, curveMax);
   const baseFat = template?.fatness ?? random(fatMin, fatMax);
+  const baseRadiusJitter = constrain(template?.radiusJitter ?? random(-0.12, 0.12), -0.6, 0.6);
+  const baseAngleJitter = constrain(template?.angleJitter ?? random(-PI / 18, PI / 18), -PI / 6, PI / 6);
+  const baseSizeJitter = constrain(template?.sizeJitter ?? random(-0.1, 0.1), -0.5, 0.5);
   return {
     type,
     curveBias: constrain(baseCurve + random(-0.15, 0.15), 0.02, 0.95),
-    fatness: constrain(baseFat + random(-0.2, 0.2), fatMin, fatMax)
+    fatness: constrain(baseFat + random(-0.2, 0.2), fatMin, fatMax),
+    radiusJitter: baseRadiusJitter,
+    angleJitter: baseAngleJitter,
+    sizeJitter: baseSizeJitter
   };
 }
 
@@ -54,7 +60,13 @@ function harmonizeShapesWithStyle(shapes = [], style = "mixed") {
       shp.type = replacement.type;
       shp.curveBias = replacement.curveBias;
       shp.fatness = replacement.fatness;
+      shp.radiusJitter = replacement.radiusJitter ?? 0;
+      shp.angleJitter = replacement.angleJitter ?? 0;
+      shp.sizeJitter = replacement.sizeJitter ?? 0;
     }
+    if (shp.radiusJitter === undefined) shp.radiusJitter = 0;
+    if (shp.angleJitter === undefined) shp.angleJitter = 0;
+    if (shp.sizeJitter === undefined) shp.sizeJitter = 0;
   }
   return shapes;
 }
@@ -120,6 +132,12 @@ function mutateGenome(g, rate = 0.25) {
     if (random() < 0.45 * rate) s.fatness = constrain((s.fatness ?? 0.5) + random(-0.18, 0.18) * rate, 0.2, 1.6);
     if (random() < 0.45 * rate) s.curveBias = constrain((s.curveBias ?? 0.5) + random(-0.18, 0.18) * rate, 0.05, 0.95);
     if (random() < 0.12 * rate) s.type = random(allowedTypesForStyle(styleForShapes));
+    if (s.radiusJitter === undefined) s.radiusJitter = 0;
+    if (s.angleJitter === undefined) s.angleJitter = 0;
+    if (s.sizeJitter === undefined) s.sizeJitter = 0;
+    if (random() < 0.4 * rate) s.radiusJitter = constrain((s.radiusJitter ?? 0) + random(-0.12, 0.12) * rate, -0.6, 0.6);
+    if (random() < 0.4 * rate) s.angleJitter = constrain((s.angleJitter ?? 0) + random(-PI / 32, PI / 32) * rate, -PI / 6, PI / 6);
+    if (random() < 0.4 * rate) s.sizeJitter = constrain((s.sizeJitter ?? 0) + random(-0.1, 0.1) * rate, -0.5, 0.5);
   }
   if (random() < 0.08 * rate && m.shapes.length < 8) {
     const template = m.shapes.length ? random(m.shapes) : null;
@@ -235,6 +253,12 @@ function mixGenomes(parents, options) {
         shp.type = t;
         shp.fatness = fb;
         shp.curveBias = cb;
+        const rj = blendNumeric(pool.map(s => (s?.radiusJitter ?? 0)));
+        const aj = blendNumeric(pool.map(s => (s?.angleJitter ?? 0)));
+        const sj = blendNumeric(pool.map(s => (s?.sizeJitter ?? 0)));
+        shp.radiusJitter = constrain(rj, -0.6, 0.6);
+        shp.angleJitter = constrain(aj, -PI / 6, PI / 6);
+        shp.sizeJitter = constrain(sj, -0.5, 0.5);
       }
     } else {
       if (random() < 0.4) {
@@ -244,6 +268,9 @@ function mixGenomes(parents, options) {
           shp.type = donorShape.type;
           shp.fatness = donorShape.fatness;
           shp.curveBias = donorShape.curveBias;
+          if (donorShape.radiusJitter !== undefined) shp.radiusJitter = donorShape.radiusJitter;
+          if (donorShape.angleJitter !== undefined) shp.angleJitter = donorShape.angleJitter;
+          if (donorShape.sizeJitter !== undefined) shp.sizeJitter = donorShape.sizeJitter;
         }
       }
     }
@@ -252,7 +279,13 @@ function mixGenomes(parents, options) {
       shp.type = replacement.type;
       shp.fatness = replacement.fatness;
       shp.curveBias = replacement.curveBias;
+      shp.radiusJitter = replacement.radiusJitter ?? 0;
+      shp.angleJitter = replacement.angleJitter ?? 0;
+      shp.sizeJitter = replacement.sizeJitter ?? 0;
     }
+    if (shp.radiusJitter === undefined) shp.radiusJitter = 0;
+    if (shp.angleJitter === undefined) shp.angleJitter = 0;
+    if (shp.sizeJitter === undefined) shp.sizeJitter = 0;
     c.shapes.push(shp);
   }
   c.numShapes = c.shapes.length;
@@ -274,7 +307,14 @@ function genomeHash(g) {
     hueShift: Math.round(g.hueShift * 10) / 10,
     shapeStyle: g.shapeStyle || "mixed",
     overlapMode: g.overlapMode || "mixed",
-    shapes: (g.shapes || []).map(s => ({ t: s.type, cb: Math.round((s.curveBias || 0) * 100) / 100, f: Math.round((s.fatness || 0) * 100) / 100 }))
+    shapes: (g.shapes || []).map(s => ({
+      t: s.type,
+      cb: Math.round((s.curveBias || 0) * 100) / 100,
+      f: Math.round((s.fatness || 0) * 100) / 100,
+      rj: Math.round((s.radiusJitter || 0) * 1000) / 1000,
+      aj: Math.round((s.angleJitter || 0) * 1000) / 1000,
+      sj: Math.round((s.sizeJitter || 0) * 1000) / 1000
+    }))
   };
   const str = JSON.stringify(obj);
   let h = 2166136261;

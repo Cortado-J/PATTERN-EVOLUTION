@@ -9,7 +9,6 @@ const APP_VERSION = "v1.0.4";
 
 // Parent selection + control panel state
 let selectedParents = []; // array of genomes currently selected (max 4)
-let mutationRate = 0.25; // 0..1
 let pendingPreview = null; // { action, label, items: [{ genome, parents }], index }
 
 // Layout caches
@@ -27,11 +26,7 @@ const ACTION_LABELS = {
   clone: "Clone",
   average: "Average",
   select: "Select",
-};
-
-// UI hit regions (computed each frame)
-let uiRegions = {
-  actionButtons: {},
+  delete: "Delete",
 };
 
 function setup() {
@@ -71,7 +66,7 @@ function handleAction(action) {
     }
     case "clone": {
       for (const parent of parents) {
-        const clone = withMeta(mutateGenome(parent, mutationRate));
+        const clone = withMeta(mutateGenome(parent, currentMutationRate()));
         items.push({ genome: clone, parents: [parent] });
       }
       break;
@@ -79,7 +74,7 @@ function handleAction(action) {
     case "average": {
       const child = withMeta(mixGenomes(parents, {
         method: "average",
-        mutationRate,
+        mutationRate: currentMutationRate(),
         paletteOverride: -1,
       }));
       items.push({ genome: child, parents });
@@ -88,11 +83,26 @@ function handleAction(action) {
     case "select": {
       const child = withMeta(mixGenomes(parents, {
         method: "random-trait",
-        mutationRate,
+        mutationRate: currentMutationRate(),
         paletteOverride: -1,
       }));
       items.push({ genome: child, parents });
       break;
+    }
+    case "delete": {
+      let removed = false;
+      for (const parent of parents) {
+        const idx = pool.indexOf(parent);
+        if (idx >= 0) {
+          pool.splice(idx, 1);
+          removed = true;
+        }
+      }
+      if (removed) {
+        selectedParents = selectedParents.filter(p => pool.includes(p));
+        drawScreen();
+      }
+      return;
     }
     default:
       return;
@@ -174,6 +184,7 @@ function keyToAction(k) {
   if (lower === "c") return "clone";
   if (lower === "a") return "average";
   if (lower === "s") return "select";
+  if (lower === "d") return "delete";
   return null;
 }
 
@@ -186,6 +197,8 @@ function isActionEnabled(action) {
     case "average":
       return selectedParents.length >= 2;
     case "select":
+      return selectedParents.length > 0;
+    case "delete":
       return selectedParents.length > 0;
     default:
       return false;

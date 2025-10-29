@@ -56,23 +56,67 @@ function createMotif(pg, g, s, palette) {
   }
   colorMode(RGB, 255);
 
+  const validModes = typeof OVERLAP_MODES !== "undefined" ? OVERLAP_MODES : ["overlap", "touch", "space", "mixed"];
+  const mode = validModes.includes(g.overlapMode) ? g.overlapMode : "overlap";
+  const count = max(1, g.numShapes || 0);
+  const angleOffset = rng() * TWO_PI;
+  const ringRadius = s * 0.85;
+
+  function pickMode(baseMode) {
+    if (baseMode !== "mixed") return baseMode;
+    const pick = rng();
+    if (pick < 0.33) return "overlap";
+    if (pick < 0.66) return "touch";
+    return "space";
+  }
+
   let n = { "632": 6, "442": 4, "333": 3, "2222": 2 }[g.group];
   for (let i = 0; i < g.numShapes; i++) {
     let shape = g.shapes[i];
+    const localMode = pickMode(mode);
+    const angle = angleOffset + (TWO_PI * i) / count;
+    let offsetRadius = 0;
+    let baseScaleFactor = 1;
+    if (localMode === "space") {
+      offsetRadius = ringRadius;
+      baseScaleFactor = 0.85;
+    } else if (localMode === "touch") {
+      offsetRadius = ringRadius * 0.6;
+      baseScaleFactor = 0.95;
+    }
+    const noiseRadius = (rng() - 0.5) * ringRadius * 0.12;
+    const jitterRadius = (shape?.radiusJitter ?? 0) * ringRadius;
+    const jitterAngle = shape?.angleJitter ?? 0;
+    const jitterScale = constrain(1 + (shape?.sizeJitter ?? 0), 0.4, 1.6);
+    const finalAngle = angle + jitterAngle;
+    const finalRadius = max(0, offsetRadius + noiseRadius + jitterRadius);
+    const offsetX = cos(finalAngle) * finalRadius;
+    const offsetY = sin(finalAngle) * finalRadius;
+    const scaleFactor = baseScaleFactor * jitterScale;
     motif.push({
       type: shape.type,
       curveBias: shape.curveBias,
       fatness: shape.fatness,
       rotation: (TWO_PI / n) * i,
-      colour: chosenCols[i % chosenCols.length]
+      colour: chosenCols[i % chosenCols.length],
+      offsetX,
+      offsetY,
+      scaleFactor
     });
   }
   return motif;
 }
 
 function drawMotif(pg, motif) {
+  if (!Array.isArray(motif)) return;
   for (let s of motif) {
+    if (!s) continue;
+    const ox = s.offsetX || 0;
+    const oy = s.offsetY || 0;
+    const scaleFactor = s.scaleFactor || 1;
     pg.push();
+    pg.translate(ox, oy);
+    if (abs(scaleFactor - 1) > 0.001) pg.scale(scaleFactor);
     pg.fill(s.colour);
     pg.rotate(s.rotation);
     drawShapeVariant(pg, s.type, 40, s.curveBias, s.fatness);
