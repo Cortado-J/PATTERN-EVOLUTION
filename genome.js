@@ -6,6 +6,7 @@
  *   - palette: key into the shared palettes map.
  *   - motifScale, rotation, hueShift: numeric controls for motif tiling and colour.
  *   - shapes: ordered array of motif parts, each with type, curveBias, fatness.
+ *   - shapeStyle: desired shape vocabulary ("curved" | "straight" | "mixed").
  *   - numShapes mirrors shapes.length for quick reference during mutation/mixing.
  *
  * `withMeta` decorates raw genomes with UI bookkeeping (id, timestamps, selectCount).
@@ -16,17 +17,44 @@
  * a light mutation pass for variation.
  * Supporting helpers (`genomeHash`, etc.) keep previews deterministic.
  */
-const SHAPE_TYPES = ["petal", "leaf", "blade", "drop", "arc"];
+const CURVED_SHAPES = ["petal", "leaf", "blade", "drop", "arc"];
+const STRAIGHT_SHAPES = ["bar", "triangle", "kite", "spoke", "chevron"];
 
-function randomShape(template = null) {
-  const type = template && random() < 0.6 ? template.type : random(SHAPE_TYPES);
-  const baseCurve = template?.curveBias ?? random(0.3, 0.7);
-  const baseFat = template?.fatness ?? random(0.4, 1.0);
+function allowedTypesForStyle(style) {
+  if (style === "curved") return CURVED_SHAPES;
+  if (style === "straight") return STRAIGHT_SHAPES;
+  return CURVED_SHAPES.concat(STRAIGHT_SHAPES);
+}
+
+function randomShape(template = null, style = "mixed") {
+  const allowed = allowedTypesForStyle(style);
+  const templateTypeAllowed = template && allowed.includes(template.type);
+  const type = templateTypeAllowed && random() < 0.6 ? template.type : random(allowed);
+  const curveMin = style === "straight" ? 0.02 : 0.25;
+  const curveMax = style === "straight" ? 0.25 : 0.75;
+  const fatMin = style === "straight" ? 0.2 : 0.35;
+  const fatMax = style === "straight" ? 1.0 : 1.6;
+  const baseCurve = template?.curveBias ?? random(curveMin, curveMax);
+  const baseFat = template?.fatness ?? random(fatMin, fatMax);
   return {
     type,
-    curveBias: constrain(baseCurve + random(-0.15, 0.15), 0.05, 0.95),
-    fatness: constrain(baseFat + random(-0.2, 0.2), 0.2, 1.6)
+    curveBias: constrain(baseCurve + random(-0.15, 0.15), 0.02, 0.95),
+    fatness: constrain(baseFat + random(-0.2, 0.2), fatMin, fatMax)
   };
+}
+
+function harmonizeShapesWithStyle(shapes = [], style = "mixed") {
+  const allowed = allowedTypesForStyle(style);
+  for (const shp of shapes) {
+    if (!allowed.includes(shp.type)) {
+      const template = allowed.includes(shp.type) ? shp : null;
+      const replacement = randomShape(template, style);
+      shp.type = replacement.type;
+      shp.curveBias = replacement.curveBias;
+      shp.fatness = replacement.fatness;
+    }
+  }
+  return shapes;
 }
 
 let nextId = 1;
@@ -44,11 +72,12 @@ function randomGenome() {
   const paletteKeys = Object.keys(palettes);
   const motifScale = random(48, 88);
   const hueShift = random(-12, 12);
+  const shapeStyle = random(["curved", "straight", "mixed", "mixed"]);
   let numShapes = floor(random(5, 9));
   let shapes = [];
   for (let i = 0; i < numShapes; i++) {
     const template = shapes.length > 0 && random() < 0.45 ? random(shapes) : null;
-    shapes.push(randomShape(template));
+    shapes.push(randomShape(template, shapeStyle));
   }
   return {
     group: random(groups),
@@ -56,6 +85,7 @@ function randomGenome() {
     motifScale,
     rotation: random(TWO_PI),
     hueShift,
+    shapeStyle,
     numShapes: shapes.length,
     shapes
   };
@@ -71,18 +101,27 @@ function mutateGenome(g, rate = 0.25) {
   m.motifScale = constrain(m.motifScale * scaleJitter, 32, 140);
   if (random() < 0.12 * rate) m.palette = random(Object.keys(palettes));
   if (random() < 0.15 * rate) m.group = random(["632", "442", "333", "2222"]);
+  const priorStyle = m.shapeStyle || "mixed";
+  if (random() < 0.1 * rate) {
+    const styles = ["curved", "straight", "mixed"];
+    m.shapeStyle = random(styles.filter(s => s !== m.shapeStyle)) || m.shapeStyle;
+  }
+  const styleForShapes = m.shapeStyle || "mixed";
   for (let s of m.shapes) {
     if (random() < 0.45 * rate) s.fatness = constrain((s.fatness ?? 0.5) + random(-0.18, 0.18) * rate, 0.2, 1.6);
     if (random() < 0.45 * rate) s.curveBias = constrain((s.curveBias ?? 0.5) + random(-0.18, 0.18) * rate, 0.05, 0.95);
-    if (random() < 0.12 * rate) s.type = random(SHAPE_TYPES);
+    if (random() < 0.12 * rate) s.type = random(allowedTypesForStyle(styleForShapes));
   }
   if (random() < 0.08 * rate && m.shapes.length < 8) {
     const template = m.shapes.length ? random(m.shapes) : null;
     const insertAt = floor(random(m.shapes.length + 1));
-    m.shapes.splice(insertAt, 0, randomShape(template));
+    m.shapes.splice(insertAt, 0, randomShape(template, styleForShapes));
   }
   if (random() < 0.06 * rate && m.shapes.length > 4) {
     m.shapes.splice(floor(random(m.shapes.length)), 1);
+  }
+  if (styleForShapes !== priorStyle || random() < 0.12 * rate) {
+    harmonizeShapesWithStyle(m.shapes, styleForShapes);
   }
   m.numShapes = m.shapes.length;
   return m;
@@ -114,6 +153,7 @@ function mixGenomes(parents, options) {
     return best;
   };
   const blendNumeric = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+  const fallbackStyle = (val) => (val === "curved" || val === "straight" || val === "mixed") ? val : "mixed";
 
   // Palette
   if (palIdx >= 0 && palIdx < p.length) c.palette = p[palIdx].palette;
@@ -126,6 +166,13 @@ function mixGenomes(parents, options) {
   // Group
   const groupVotes = p.map(x => x.group);
   c.group = method === "average" || random() < 0.6 ? majority(groupVotes) : pickParent().group;
+
+  // Shape style
+  const styleVotes = p.map(x => fallbackStyle(x.shapeStyle || "mixed"));
+  const styleMajority = majority(styleVotes);
+  if (method === "average") c.shapeStyle = styleMajority;
+  else c.shapeStyle = fallbackStyle(random() < 0.55 ? styleMajority : pickParent().shapeStyle || styleMajority);
+  const styleForShapes = c.shapeStyle || "mixed";
 
   // Numeric traits
   if (method === "average") {
@@ -182,12 +229,19 @@ function mixGenomes(parents, options) {
         }
       }
     }
+    if (!allowedTypesForStyle(styleForShapes).includes(shp.type)) {
+      const replacement = randomShape(shp, styleForShapes);
+      shp.type = replacement.type;
+      shp.fatness = replacement.fatness;
+      shp.curveBias = replacement.curveBias;
+    }
     c.shapes.push(shp);
   }
   c.numShapes = c.shapes.length;
 
   // Light mutation to bring variation
   c = mutateGenome(c, mut);
+  harmonizeShapesWithStyle(c.shapes, c.shapeStyle || "mixed");
   return c;
 }
 
@@ -199,6 +253,7 @@ function genomeHash(g) {
     motifScale: Math.round(g.motifScale * 100) / 100,
     rotation: Math.round(((g.rotation || 0) % (Math.PI * 2)) * 1000) / 1000,
     hueShift: Math.round(g.hueShift * 10) / 10,
+    shapeStyle: g.shapeStyle || "mixed",
     shapes: (g.shapes || []).map(s => ({ t: s.type, cb: Math.round((s.curveBias || 0) * 100) / 100, f: Math.round((s.fatness || 0) * 100) / 100 }))
   };
   const str = JSON.stringify(obj);
