@@ -2,7 +2,7 @@
 // Implements motif generation and wallpaper tiling logic for genomes.
 function drawWallpaperOn(pg, g) {
   let a = g.motifScale;
-  let palette = palettes[g.palette];
+  let palette = ensureGenomeColors(g);
   let lattice;
   if (g.group === "632")
     lattice = (i, j) => createVector(i * a * sqrt(3) + (j % 2) * a * sqrt(3) / 2, j * a * 1.5);

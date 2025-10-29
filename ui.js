@@ -1,5 +1,6 @@
 // UI state and rendering
 // Coordinates top-level layout, pool grid drawing, and control panel composition.
+const TILE_SCALE = 0.9;
 function panelHeight() {
   return 220;
 }
@@ -19,7 +20,8 @@ function drawPoolGrid() {
   const cellHBase = gridH / rows;
   const s = min(cellWBase, cellHBase);
   const gap = max(4, s * 0.08);
-  const tile = max(10, s - gap);
+  const tileBase = max(10, s - gap);
+  const tile = max(10, tileBase * TILE_SCALE);
   const originX = (width - cols * s) / 2;
   const originYBase = HEADER_H + gap / 2;
   const maxOriginY = HEADER_H + gridH - rows * s;
@@ -32,6 +34,7 @@ function drawPoolGrid() {
     const g = pool[i];
     const isSel = selectedParents.includes(g);
     drawQuadrant(g, x, y, tile, tile, isSel, i);
+    drawGenomeSummaryLabel(genomeSummary(g), x, y + tile + 4, tile);
   }
 }
 
@@ -64,6 +67,17 @@ function drawQuadrant(g, x, y, w, h, isSelected = false, idx = 0) {
   // textAlign(CENTER, CENTER);
   // textSize(18);
   // text(g.group, x + w / 2, y + 16);
+}
+
+function drawGenomeSummaryLabel(summary, x, y, width) {
+  if (!summary) return;
+  push();
+  noStroke();
+  fill(32);
+  textSize(15);
+  textAlign(CENTER, TOP);
+  text(summary, x + width / 2, y);
+  pop();
 }
 
 function drawControls() {
@@ -130,6 +144,7 @@ function drawControls() {
       noFill();
       rect(artX, artY, artSize, artSize, 4);
       strokeWeight(1);
+      drawGenomeSummaryLabel(genomeSummary(item.genome), artX, artY + artSize + 6, artSize);
     }
   } else {
     text("Choose an action or press R/C/A/S to preview.", previewX + 16, infoY);

@@ -2,12 +2,12 @@
  * Genome model overview
  * ---------------------
  * Each wallpaper genome encapsulates the traits that drive rendering:
+ *   - overlapMode: spatial relationship among motif shapes ("overlap" | "touch" | "space" | "mixed").
  *   - group: wallpaper symmetry group id ("632", "442", "333", "2222").
+ *   - shapeStyle: desired shape vocabulary ("curved" | "straight" | "mixed").
  *   - palette: key into the shared palettes map.
  *   - motifScale, rotation, hueShift: numeric controls for motif tiling and colour.
  *   - shapes: ordered array of motif parts, each with type, curveBias, fatness.
- *   - shapeStyle: desired shape vocabulary ("curved" | "straight" | "mixed").
- *   - overlapMode: spatial relationship among motif shapes ("overlap" | "touch" | "space" | "mixed").
  *   - numShapes mirrors shapes.length for quick reference during mutation/mixing.
  *
  * `withMeta` decorates raw genomes with UI bookkeeping (id, timestamps, selectCount).
@@ -21,6 +21,116 @@
 const CURVED_SHAPES = ["petal", "leaf", "blade", "drop", "arc"];
 const STRAIGHT_SHAPES = ["bar", "triangle", "kite", "spoke", "chevron"];
 const OVERLAP_MODES = ["overlap", "touch", "space", "mixed"];
+const OVERLAP_SUMMARY_CODES = {
+  overlap: "Oo",
+  touch: "Ot",
+  space: "Os",
+  mixed: "Om",
+};
+const SHAPE_STYLE_SUMMARY_CODES = {
+  curved: "Sc",
+  straight: "Ss",
+  mixed: "Sm",
+};
+
+function normalizeColorHSB(colorHSB) {
+  if (!colorHSB) return { h: 0, s: 60, b: 80 };
+  const h = ((colorHSB.h ?? 0) % 360 + 360) % 360;
+  const s = constrain(colorHSB.s ?? 60, 0, 100);
+  const b = constrain(colorHSB.b ?? 80, 0, 100);
+  return { h, s, b };
+}
+
+function cloneColors(colors = []) {
+  return colors.map(c => normalizeColorHSB({ ...c }));
+}
+
+function paletteColorsForKey(key) {
+  if (!key || !palettes || !palettes[key]) return [];
+  return palettes[key].map(hex => normalizeColorHSB(hexToHSB(hex)));
+}
+
+function ensureGenomeColors(g) {
+  if (!g) return [];
+  if (!Array.isArray(g.colors) || g.colors.length === 0) {
+    g.colors = paletteColorsForKey(g.palette);
+  } else {
+    g.colors = g.colors.map(normalizeColorHSB);
+  }
+  return g.colors;
+}
+
+function hexToHSB(hex) {
+  if (typeof hex !== "string") return { h: 0, s: 0, b: 100 };
+  let str = hex.trim().replace(/^#/, "");
+  if (str.length === 3) {
+    str = str.split("").map(ch => ch + ch).join("");
+  }
+  if (str.length !== 6) return { h: 0, s: 0, b: 100 };
+  const intVal = parseInt(str, 16);
+  if (Number.isNaN(intVal)) return { h: 0, s: 0, b: 100 };
+  const r = (intVal >> 16) & 0xff;
+  const g = (intVal >> 8) & 0xff;
+  const b = intVal & 0xff;
+  return rgbToHSB(r, g, b);
+}
+
+function rgbToHSB(r, g, b) {
+  const rn = constrain(r, 0, 255) / 255;
+  const gn = constrain(g, 0, 255) / 255;
+  const bn = constrain(b, 0, 255) / 255;
+  const maxVal = Math.max(rn, gn, bn);
+  const minVal = Math.min(rn, gn, bn);
+  const delta = maxVal - minVal;
+
+  let h;
+  if (delta === 0) {
+    h = 0;
+  } else if (maxVal === rn) {
+    h = ((gn - bn) / delta) % 6;
+  } else if (maxVal === gn) {
+    h = (bn - rn) / delta + 2;
+  } else {
+    h = (rn - gn) / delta + 4;
+  }
+  h = (h * 60 + 360) % 360;
+
+  const s = maxVal === 0 ? 0 : (delta / maxVal) * 100;
+  const v = maxVal * 100;
+
+  return { h, s, b: v };
+}
+
+function mutateColorHSB(colorHSB, rate = 0.2) {
+  const base = normalizeColorHSB(colorHSB);
+  const hueDelta = random(-12, 12) * rate;
+  const satDelta = random(-10, 10) * rate;
+  const briDelta = random(-10, 10) * rate;
+  return normalizeColorHSB({
+    h: base.h + hueDelta,
+    s: base.s + satDelta,
+    b: base.b + briDelta,
+  });
+}
+
+function lerpHueDeg(a, b, t) {
+  const delta = ((b - a + 540) % 360) - 180;
+  return ((a + delta * constrain(t, 0, 1)) % 360 + 360) % 360;
+}
+
+function averageHue(hues = []) {
+  if (!hues.length) return 0;
+  let sumX = 0;
+  let sumY = 0;
+  for (const h of hues) {
+    const rad = radians(h);
+    sumX += cos(rad);
+    sumY += sin(rad);
+  }
+  let angle = degrees(atan2(sumY, sumX));
+  if (angle < 0) angle += 360;
+  return angle % 360;
+}
 
 function allowedTypesForStyle(style) {
   if (style === "curved") return CURVED_SHAPES;
@@ -71,6 +181,33 @@ function harmonizeShapesWithStyle(shapes = [], style = "mixed") {
   return shapes;
 }
 
+function genomeSummary(g) {
+  if (!g) return "";
+
+  const overlapKey = (g.overlapMode || "mixed").toLowerCase();
+  const styleKey = (g.shapeStyle || "mixed").toLowerCase();
+
+  const overlapCode = OVERLAP_SUMMARY_CODES[overlapKey] || "O?";
+  const styleCode = SHAPE_STYLE_SUMMARY_CODES[styleKey] || "S?";
+  const groupCode = g.group ? `G${g.group}` : "G?";
+
+  let paletteCode = "P?";
+  if (g.palette) {
+    const paletteKeys = palettes ? Object.keys(palettes) : [];
+    const paletteIndex = paletteKeys.indexOf(g.palette);
+    if (paletteIndex >= 0) {
+      paletteCode = `P${paletteIndex + 1}`;
+    } else if (/^p\d+$/i.test(g.palette)) {
+      paletteCode = g.palette.replace(/^p/, "P");
+    }
+  }
+
+  const shapeCount = g.numShapes ?? (Array.isArray(g.shapes) ? g.shapes.length : 0);
+  const countCode = `N${shapeCount || 0}`;
+
+  return overlapCode + styleCode + groupCode + paletteCode + countCode;
+}
+
 let nextId = 1;
 
 function withMeta(g) {
@@ -94,16 +231,21 @@ function randomGenome() {
     const template = shapes.length > 0 && random() < 0.45 ? random(shapes) : null;
     shapes.push(randomShape(template, shapeStyle));
   }
+  const paletteKey = random(paletteKeys);
+  const basePalette = paletteColorsForKey(paletteKey);
+  const paletteForGenome = basePalette.length ? basePalette : [normalizeColorHSB({ h: random(360), s: random(45, 95), b: random(55, 95) })];
+  const colors = paletteForGenome.map(col => mutateColorHSB(col, 0.15));
   return {
     group: random(groups),
-    palette: random(paletteKeys),
+    palette: paletteKey,
     motifScale,
     rotation: random(TWO_PI),
     hueShift,
     shapeStyle,
     overlapMode,
     numShapes: shapes.length,
-    shapes
+    shapes,
+    colors,
   };
 }
 
@@ -111,6 +253,7 @@ function randomGenome() {
 function mutateGenome(g, rate = 0.25) {
   // rate in [0,1], scaling mutation intensity and probability
   let m = structuredClone(g);
+  ensureGenomeColors(m);
   m.hueShift += random(-6, 6) * rate;
   // scale multiplicative change towards 1 by rate
   let scaleJitter = lerp(1, random(0.9, 1.15), rate);
@@ -152,6 +295,46 @@ function mutateGenome(g, rate = 0.25) {
   }
   if (m.overlapMode !== priorOverlap) {
     // Placeholder for future spatial re-layout if needed.
+  }
+  const paletteKeys = palettes ? Object.keys(palettes) : [];
+  if (random() < 0.08 * rate && paletteKeys.length) {
+    // Occasionally adopt a new palette base but keep hues nearby.
+    const newPalette = paletteColorsForKey(random(paletteKeys));
+    if (newPalette.length) {
+      const blendRatio = constrain(rate * 0.5 + random(0, 0.2), 0, 1);
+      const baseColors = ensureGenomeColors(m);
+      const maxLen = max(newPalette.length, baseColors.length || 1);
+      const blended = [];
+      for (let i = 0; i < maxLen; i++) {
+        const fromOld = baseColors[i % baseColors.length] || baseColors[0];
+        const fromNew = newPalette[i % newPalette.length];
+        if (!fromOld) {
+          blended.push(normalizeColorHSB(fromNew));
+        } else {
+          blended.push(normalizeColorHSB({
+            h: lerpHueDeg(fromOld.h, fromNew.h, blendRatio),
+            s: lerp(fromOld.s, fromNew.s, blendRatio),
+            b: lerp(fromOld.b, fromNew.b, blendRatio),
+          }));
+        }
+      }
+      m.colors = blended;
+    }
+  }
+
+  const baseColors = ensureGenomeColors(m);
+  const mutationStrength = max(0.05, rate * 0.45);
+  m.colors = baseColors.map(col => {
+    const shouldMutate = random() < (0.4 + rate * 0.4);
+    const mutated = shouldMutate ? mutateColorHSB(col, mutationStrength) : normalizeColorHSB(col);
+    return { ...mutated };
+  });
+  if (random() < 0.05 * rate && m.colors.length < 6 && m.colors.length > 0) {
+    const addSource = random(m.colors);
+    m.colors.push(mutateColorHSB(addSource, mutationStrength * 1.2));
+  }
+  if (random() < 0.03 * rate && m.colors.length > 3) {
+    m.colors.splice(floor(random(m.colors.length)), 1);
   }
   m.numShapes = m.shapes.length;
   return m;
@@ -290,8 +473,44 @@ function mixGenomes(parents, options) {
   }
   c.numShapes = c.shapes.length;
 
+  const parentColors = p.map(parent => cloneColors(ensureGenomeColors(parent))).filter(arr => arr.length > 0);
+  let combinedColors = [];
+  if (parentColors.length) {
+    if (method === "average") {
+      const maxLen = parentColors.reduce((acc, arr) => max(acc, arr.length), 0);
+      for (let i = 0; i < maxLen; i++) {
+        const samples = parentColors.map(arr => arr[i % arr.length]).filter(Boolean);
+        if (!samples.length) continue;
+        const hue = averageHue(samples.map(s => s.h));
+        const sat = samples.reduce((sum, s) => sum + s.s, 0) / samples.length;
+        const bri = samples.reduce((sum, s) => sum + s.b, 0) / samples.length;
+        combinedColors.push(normalizeColorHSB({ h: hue, s: sat, b: bri }));
+      }
+    } else {
+      const seed = cloneColors(random(parentColors));
+      combinedColors = seed;
+      for (const colors of parentColors) {
+        colors.forEach((col, idx) => {
+          if (!combinedColors[idx] || random() < 0.3) {
+            combinedColors[idx] = normalizeColorHSB(col);
+          }
+        });
+      }
+    }
+  }
+
+  if (!combinedColors.length) {
+    combinedColors = paletteColorsForKey(c.palette);
+    if (!combinedColors.length) {
+      combinedColors = [normalizeColorHSB({ h: random(360), s: random(45, 95), b: random(55, 95) })];
+    }
+  }
+
+  combinedColors = combinedColors.map(col => mutateColorHSB(col, mut * 0.6 + 0.1));
+  c.colors = combinedColors;
+
   // Light mutation to bring variation
-  c = mutateGenome(c, mut);
+  c = mutateGenome(c, mut * 0.8);
   harmonizeShapesWithStyle(c.shapes, c.shapeStyle || "mixed");
   // Future: spatial re-layout for overlapMode can be added here.
   return c;
