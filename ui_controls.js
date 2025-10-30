@@ -4,11 +4,25 @@ const MUTATION_MIN = 0.0;
 const MUTATION_MAX = 0.6;
 const MUTATION_STEP = 0.01;
 
+const PATTERN_SIZES = [1, 1.5, 2]; // More conservative size multipliers
+const PATTERN_SIZE_LABELS = ["1x", "1.5x", "2x"];
+
 const uiRegions = {
   actionButtons: {},
+  patternSizeButtons: {},
 };
 
 let mutationRate = 0.05; // default 5%
+let patternSizeIndex = 0; // default to 1x size
+
+function getPatternSize() {
+  return PATTERN_SIZES[patternSizeIndex];
+}
+
+function setPatternSize(index, redraw = true) {
+  patternSizeIndex = constrain(index, 0, PATTERN_SIZES.length - 1);
+  if (redraw) drawScreen();
+}
 
 const mutationSlider = {
   region: null,
@@ -194,7 +208,56 @@ function drawMutationSliderSection(layout, buttonMetrics) {
     sliderY,
     sliderHeight,
     knobRadius,
-    bottom: mutationSlider.increase.y + mutationSlider.increase.h,
+    bottom: nudgeY + 30,
+    // Pass through button metrics for pattern size section
+    columnX: buttonMetrics.columnX,
+    buttonAreaWidth: buttonMetrics.buttonAreaWidth,
+  };
+}
+
+function drawPatternSizeSection(layout, sliderMetrics) {
+  // Position pattern size buttons lower to avoid mutation controls
+  const sizeY = layout.innerY + 250;
+  
+  const buttonW = min(50, sliderMetrics.buttonAreaWidth / 4);
+  const buttonH = 30;
+  const buttonGap = 6;
+  const totalWidth = PATTERN_SIZES.length * buttonW + (PATTERN_SIZES.length - 1) * buttonGap;
+  const startX = sliderMetrics.columnX + (sliderMetrics.buttonAreaWidth - totalWidth) / 2;
+
+  // Check if we have enough space
+  const availableHeight = layout.innerY + layout.innerH - sizeY;
+  if (availableHeight < buttonH + 20) {
+    return { bottom: sizeY };
+  }
+
+  // Draw the pattern size label
+  stroke(0);
+  fill(60);
+  textAlign(LEFT, CENTER);
+  textSize(14);
+  text("Display Size:", sliderMetrics.columnX, sizeY + buttonH / 2);
+
+  // Draw the size buttons
+  PATTERN_SIZES.forEach((size, idx) => {
+    const bx = startX + idx * (buttonW + buttonGap);
+    const by = sizeY;
+    const region = { x: bx, y: by, w: buttonW, h: buttonH };
+    uiRegions.patternSizeButtons[idx] = region;
+    
+    const isSelected = idx === patternSizeIndex;
+    stroke(0);
+    fill(isSelected ? "#06d6a0" : 245);
+    rect(region.x, region.y, region.w, region.h, 6);
+    noStroke();
+    fill(isSelected ? 255 : 0);
+    textAlign(CENTER, CENTER);
+    textSize(14);
+    text(PATTERN_SIZE_LABELS[idx], region.x + region.w / 2, region.y + region.h / 2);
+  });
+
+  return {
+    bottom: sizeY + buttonH,
   };
 }
 
@@ -205,6 +268,15 @@ function mousePressed() {
       if (!region.enabled) return;
       if (previewActive()) discardPreview(false);
       handleAction(action);
+      return;
+    }
+  }
+
+  // Check pattern size buttons
+  if (uiRegions.patternSizeButtons) {
+    for (const [index, region] of Object.entries(uiRegions.patternSizeButtons)) {
+      if (!region || !pointInRect(mouseX, mouseY, region)) continue;
+      setPatternSize(parseInt(index));
       return;
     }
   }

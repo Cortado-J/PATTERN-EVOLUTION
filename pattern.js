@@ -18,10 +18,27 @@ function drawWallpaperOn(pg, g) {
   for (let i = -n; i <= n; i++) {
     for (let j = -n; j <= n; j++) {
       let p = lattice(i, j);
-      pg.push();
-      pg.translate(p.x, p.y);
-      drawMotif(pg, motif);
-      pg.pop();
+      
+      // Apply rotational symmetries based on wallpaper group
+      let rotations = 1; // Default: no rotation (just translation)
+      if (g.group === "632") {
+        rotations = 6; // 6-fold rotation
+      } else if (g.group === "442") {
+        rotations = 4; // 4-fold rotation
+      } else if (g.group === "333") {
+        rotations = 3; // 3-fold rotation
+      } else if (g.group === "2222") {
+        rotations = 2; // 2-fold rotation
+      }
+      
+      // Draw rotated copies at each lattice position
+      for (let r = 0; r < rotations; r++) {
+        pg.push();
+        pg.translate(p.x, p.y);
+        pg.rotate((TWO_PI * r) / rotations);
+        drawMotif(pg, motif);
+        pg.pop();
+      }
     }
   }
 }

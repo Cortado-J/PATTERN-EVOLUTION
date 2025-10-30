@@ -35,7 +35,7 @@ const ACTION_LABELS = {
 };
 
 function setup() {
-  createCanvas(1000, 1100);
+  createCanvas(1000, 1300); // Increased height further to accommodate larger control panel
   angleMode(RADIANS);
   noLoop();
   // Also show version in browser tab

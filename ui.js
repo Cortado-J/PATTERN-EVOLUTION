@@ -2,40 +2,65 @@
 // Coordinates top-level layout, pool grid drawing, and control panel composition.
 const TILE_SCALE = 0.9;
 function panelHeight() {
-  return 220;
+  return 350; // Increased significantly to ensure all controls are visible
 }
 
 function calculatePoolLayout() {
   const cols = GRID_COLS;
-  const visibleRows = GRID_ROWS;
   const gridH = height - HEADER_H - panelHeight();
-  const cellHBase = gridH / visibleRows;
+  const gridW = width - 100; // Leave some margin for scrollbar
+  const cellHBase = gridH / GRID_ROWS; // Use original GRID_ROWS for base calculation
+  const cellWBase = gridW / cols;
   const scrollbarWidth = 24;
   const minScrollbarGap = 14;
   const gridAvailableWidth = max(120, width - scrollbarWidth - minScrollbarGap);
 
+  // Apply pattern size multiplier to make tiles bigger/smaller
+  const patternSize = typeof getPatternSize === "function" ? getPatternSize() : 1;
+  const sizeMultiplier = patternSize;
+
   let cellSize = min(width / cols, cellHBase);
   cellSize = min(cellSize, gridAvailableWidth / cols);
+  
+  // Apply size multiplier 
+  cellSize = cellSize * sizeMultiplier;
+  
+  // Only constrain height, allow width to overflow with horizontal scrolling
+  const maxCellHeight = gridH;
+  cellSize = min(cellSize, maxCellHeight); // Only constrain height
+  cellSize = max(cellSize, 20); // Minimum tile size
+
+  // Calculate how many rows can actually fit with the larger tiles
+  const visibleRows = max(1, floor(gridH / cellSize));
+  
+  // Calculate how many columns can actually fit in the visible area
+  const visibleCols = max(1, floor(gridW / cellSize));
 
   const gap = max(4, cellSize * 0.08);
   const tileBase = max(10, cellSize - gap);
   const tile = max(10, tileBase * TILE_SCALE);
-  const viewportWidth = cols * cellSize;
+  
+  // Use visibleCols for viewport width instead of full cols
+  const viewportWidth = visibleCols * cellSize;
   const scrollbarGapMax = max(minScrollbarGap, width - viewportWidth - scrollbarWidth);
   const scrollbarGap = constrain(max(gap, minScrollbarGap), minScrollbarGap, scrollbarGapMax);
   const totalWidth = viewportWidth + scrollbarGap + scrollbarWidth;
   const originX = (width - totalWidth) / 2;
   const originYBase = HEADER_H + gap / 2;
-  const maxOriginY = HEADER_H + gridH - visibleRows * cellSize;
-  const viewportTop = min(originYBase, maxOriginY);
+  
+  // Calculate viewport height based on actual visible rows
   const viewportHeight = visibleRows * cellSize;
-  const totalRows = max(1, ceil(pool.length / cols));
+  
+  const maxOriginY = HEADER_H + gridH - viewportHeight;
+  const viewportTop = min(originYBase, maxOriginY);
+  const totalRows = max(1, ceil(pool.length / visibleCols)); // Use visibleCols for total rows calculation
   const contentHeight = totalRows * cellSize;
   const maxScroll = max(0, contentHeight - viewportHeight);
   const scrollbarX = originX + viewportWidth + scrollbarGap;
 
   return {
     cols,
+    visibleCols,
     visibleRows,
     gap,
     tile,
@@ -141,9 +166,11 @@ function drawPoolGrid() {
   for (let row = 0; row < rowsToDraw; row++) {
     const globalRow = firstRow + row;
     const yBase = layout.viewportTop + row * layout.cellSize - rowOffset;
-    const idxBase = globalRow * layout.cols;
+    // Use visibleCols for index calculation instead of original cols
+    const idxBase = globalRow * layout.visibleCols;
 
-    for (let col = 0; col < layout.cols; col++) {
+    // Draw all visible columns
+    for (let col = 0; col < layout.visibleCols; col++) {
       const idx = idxBase + col;
       if (idx >= pool.length) break;
       const x = layout.originX + col * layout.cellSize + (layout.cellSize - layout.tile) / 2;
@@ -271,7 +298,8 @@ function drawControls() {
   ];
 
   const buttonMetrics = renderActionButtonGrid(actions, layout, { buttonCols: 2 });
-  drawMutationSliderSection(layout, buttonMetrics);
+  const sliderMetrics = drawMutationSliderSection(layout, buttonMetrics);
+  const sizeMetrics = drawPatternSizeSection(layout, sliderMetrics);
 
   const previewSpacing = max(24, buttonMetrics.buttonW * 0.2);
   const previewX = buttonMetrics.columnX + buttonMetrics.buttonAreaWidth + previewSpacing;
