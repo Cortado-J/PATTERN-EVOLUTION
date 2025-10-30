@@ -1,41 +1,64 @@
 // === wallpaper rendering ===
 // Implements motif generation and wallpaper tiling logic for genomes.
-function drawWallpaperOn(pg, g) {
-  let a = g.motifScale;
-  let palette = ensureGenomeColors(g);
-  let lattice;
-  if (g.group === "632")
-    lattice = (i, j) => createVector(i * a * sqrt(3) + (j % 2) * a * sqrt(3) / 2, j * a * 1.5);
-  if (g.group === "442")
-    lattice = (i, j) => createVector(i * a, j * a);
-  if (g.group === "333")
-    lattice = (i, j) => createVector(i * a + (j % 2) * a / 2, j * a * sqrt(3) / 2);
-  if (g.group === "2222")
-    lattice = (i, j) => createVector(i * a, j * a * 0.6);
+const GROUP_SPECS = {
+  "632": {
+    order: 6,
+    basis: [
+      { x: Math.sqrt(3), y: 0 },
+      { x: Math.sqrt(3) / 2, y: 1.5 },
+    ],
+  },
+  "442": {
+    order: 4,
+    basis: [
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+    ],
+  },
+  "333": {
+    order: 3,
+    basis: [
+      { x: 1, y: 0 },
+      { x: 0.5, y: Math.sqrt(3) / 2 },
+    ],
+  },
+  "2222": {
+    order: 2,
+    basis: [
+      { x: 1, y: 0 },
+      { x: 0.5, y: 0.6 },
+    ],
+  },
+};
 
-  let motif = createMotif(pg, g, a * 0.4, palette);
-  let n = 4;
-  for (let i = -n; i <= n; i++) {
-    for (let j = -n; j <= n; j++) {
-      let p = lattice(i, j);
-      
-      // Apply rotational symmetries based on wallpaper group
-      let rotations = 1; // Default: no rotation (just translation)
-      if (g.group === "632") {
-        rotations = 6; // 6-fold rotation
-      } else if (g.group === "442") {
-        rotations = 4; // 4-fold rotation
-      } else if (g.group === "333") {
-        rotations = 3; // 3-fold rotation
-      } else if (g.group === "2222") {
-        rotations = 2; // 2-fold rotation
-      }
-      
-      // Draw rotated copies at each lattice position
-      for (let r = 0; r < rotations; r++) {
+function getGroupSpec(key) {
+  if (GROUP_SPECS[key]) return GROUP_SPECS[key];
+  return GROUP_SPECS["442"]; // fallback to square lattice
+}
+
+function latticePointFrom(spec, a, i, j) {
+  const b1 = spec.basis[0];
+  const b2 = spec.basis[1];
+  const x = (i * b1.x + j * b2.x) * a;
+  const y = (i * b1.y + j * b2.y) * a;
+  return createVector(x, y);
+}
+function drawWallpaperOn(pg, g) {
+  const a = g.motifScale;
+  const palette = ensureGenomeColors(g);
+  const spec = getGroupSpec(g.group);
+  const wedgeAngle = TWO_PI / spec.order;
+  const motif = createMotif(pg, g, a * 0.4, palette, spec);
+  const baseRotation = g.rotation || 0;
+  const tileRange = 4;
+
+  for (let i = -tileRange; i <= tileRange; i++) {
+    for (let j = -tileRange; j <= tileRange; j++) {
+      const p = latticePointFrom(spec, a, i, j);
+      for (let r = 0; r < spec.order; r++) {
         pg.push();
         pg.translate(p.x, p.y);
-        pg.rotate((TWO_PI * r) / rotations);
+        pg.rotate(baseRotation + wedgeAngle * r);
         drawMotif(pg, motif);
         pg.pop();
       }
@@ -44,7 +67,7 @@ function drawWallpaperOn(pg, g) {
 }
 
 // === motif & shapes ===
-function createMotif(pg, g, s, palette) {
+function createMotif(pg, g, s, palette, spec) {
   let motif = [];
   let paletteSet = palettes[g.palette];
 
@@ -77,8 +100,10 @@ function createMotif(pg, g, s, palette) {
   const validModes = typeof OVERLAP_MODES !== "undefined" ? OVERLAP_MODES : ["overlap", "touch", "space", "mixed"];
   const mode = validModes.includes(g.overlapMode) ? g.overlapMode : "overlap";
   const count = max(1, g.numShapes || 0);
-  const angleOffset = rng() * TWO_PI;
   const ringRadius = s * 0.85;
+  const order = spec?.order || 1;
+  const wedgeAngle = TWO_PI / order;
+  const angularMargin = wedgeAngle * 0.45;
 
   function pickMode(baseMode) {
     if (baseMode !== "mixed") return baseMode;
@@ -88,25 +113,26 @@ function createMotif(pg, g, s, palette) {
     return "space";
   }
 
-  let n = { "632": 6, "442": 4, "333": 3, "2222": 2 }[g.group];
   for (let i = 0; i < g.numShapes; i++) {
     let shape = g.shapes[i];
     const localMode = pickMode(mode);
-    const angle = angleOffset + (TWO_PI * i) / count;
-    let offsetRadius = 0;
+    let baseRadiusFactor = 0.35;
     let baseScaleFactor = 1;
     if (localMode === "space") {
-      offsetRadius = ringRadius;
+      baseRadiusFactor = 0.85;
       baseScaleFactor = 0.85;
     } else if (localMode === "touch") {
-      offsetRadius = ringRadius * 0.6;
+      baseRadiusFactor = 0.6;
       baseScaleFactor = 0.95;
     }
+    const offsetRadius = ringRadius * baseRadiusFactor;
     const noiseRadius = (rng() - 0.5) * ringRadius * 0.12;
     const jitterRadius = (shape?.radiusJitter ?? 0) * ringRadius;
     const jitterAngle = shape?.angleJitter ?? 0;
     const jitterScale = constrain(1 + (shape?.sizeJitter ?? 0), 0.4, 1.6);
-    const finalAngle = angle + jitterAngle;
+    const baseAngle = -angularMargin + ((i + 0.5) / count) * angularMargin * 2;
+    const randomAngle = (rng() - 0.5) * angularMargin * 0.35;
+    const finalAngle = baseAngle + randomAngle + jitterAngle;
     const finalRadius = max(0, offsetRadius + noiseRadius + jitterRadius);
     const offsetX = cos(finalAngle) * finalRadius;
     const offsetY = sin(finalAngle) * finalRadius;
@@ -115,7 +141,7 @@ function createMotif(pg, g, s, palette) {
       type: shape.type,
       curveBias: shape.curveBias,
       fatness: shape.fatness,
-      rotation: (TWO_PI / n) * i,
+      rotation: finalAngle + rng() * wedgeAngle * 0.1,
       colour: chosenCols[i % chosenCols.length],
       offsetX,
       offsetY,
@@ -212,18 +238,24 @@ function drawShapeVariant(pg, type, s, bias, fat) {
 
 function estimateCellSize(g) {
   const a = g?.motifScale || 1;
-  switch (g?.group) {
-    case "632":
-      return { w: a * sqrt(3), h: a * 1.5 };
-    case "442":
-      return { w: a, h: a };
-    case "333":
-      return { w: a, h: a * sqrt(3) / 2 };
-    case "2222":
-      return { w: a, h: a * 0.6 };
-    default:
-      return { w: a, h: a };
-  }
+  const spec = getGroupSpec(g?.group);
+  const corners = [
+    { x: 0, y: 0 },
+    { x: spec.basis[0].x, y: spec.basis[0].y },
+    { x: spec.basis[1].x, y: spec.basis[1].y },
+    {
+      x: spec.basis[0].x + spec.basis[1].x,
+      y: spec.basis[0].y + spec.basis[1].y,
+    },
+  ].map(v => ({ x: v.x * a, y: v.y * a }));
+  const xs = corners.map(c => c.x);
+  const ys = corners.map(c => c.y);
+  const width = Math.max(...xs) - Math.min(...xs);
+  const height = Math.max(...ys) - Math.min(...ys);
+  return {
+    w: width || a,
+    h: height || a,
+  };
 }
 
 function displayScaleForPattern(g, width, height, repeats = 3) {
