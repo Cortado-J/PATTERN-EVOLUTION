@@ -45,22 +45,22 @@ function latticePointFrom(spec, a, i, j) {
 }
 function drawWallpaperOn(pg, g) {
   const a = g.motifScale;
-  const palette = ensureGenomeColors(g);
   const spec = getGroupSpec(g.group);
   const wedgeAngle = TWO_PI / spec.order;
-  const motif = createMotif(pg, g, a * 0.4, palette, spec);
+  const motif = createMotif(pg, g, a * 0.4, ensureGenomeColors(g), spec);
   const baseRotation = g.rotation || 0;
   const tileRange = 4;
-
-  for (let i = -tileRange; i <= tileRange; i++) {
-    for (let j = -tileRange; j <= tileRange; j++) {
-      const p = latticePointFrom(spec, a, i, j);
-      for (let r = 0; r < spec.order; r++) {
-        pg.push();
-        pg.translate(p.x, p.y);
-        pg.rotate(baseRotation + wedgeAngle * r);
-        drawMotif(pg, motif);
-        pg.pop();
+  for (const shape of motif) {
+    for (let i = -tileRange; i <= tileRange; i++) {
+      for (let j = -tileRange; j <= tileRange; j++) {
+        const p = latticePointFrom(spec, a, i, j);
+        for (let r = 0; r < spec.order; r++) {
+          pg.push();
+          pg.translate(p.x, p.y);
+          pg.rotate(baseRotation + wedgeAngle * r);
+          drawMotifShape(pg, shape);
+          pg.pop();
+        }
       }
     }
   }
@@ -151,21 +151,19 @@ function createMotif(pg, g, s, palette, spec) {
   return motif;
 }
 
-function drawMotif(pg, motif) {
-  if (!Array.isArray(motif)) return;
-  for (let s of motif) {
-    if (!s) continue;
-    const ox = s.offsetX || 0;
-    const oy = s.offsetY || 0;
-    const scaleFactor = s.scaleFactor || 1;
-    pg.push();
-    pg.translate(ox, oy);
-    if (abs(scaleFactor - 1) > 0.001) pg.scale(scaleFactor);
-    pg.fill(s.colour);
-    pg.rotate(s.rotation);
-    drawShapeVariant(pg, s.type, 40, s.curveBias, s.fatness);
-    pg.pop();
-  }
+function drawMotifShape(pg, s) {
+  if (!s) return;
+  const ox = s.offsetX || 0;
+  const oy = s.offsetY || 0;
+  const scaleFactor = s.scaleFactor || 1;
+  pg.push();
+  pg.translate(ox, oy);
+  if (abs(scaleFactor - 1) > 0.001) pg.scale(scaleFactor);
+  pg.fill(s.colour);
+  pg.noStroke();
+  pg.rotate(s.rotation);
+  drawShapeVariant(pg, s.type, 40, s.curveBias, s.fatness);
+  pg.pop();
 }
 
 function drawShapeVariant(pg, type, s, bias, fat) {
