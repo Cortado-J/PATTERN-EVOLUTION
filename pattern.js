@@ -128,18 +128,19 @@ function createMotif(pg, g, s, palette, spec) {
   let motif = [];
   let paletteSet = palettes[g.palette];
 
-  // Deterministic color selection per genome to avoid re-render color changes
-  function mulberry32(a) {
+  // Stateful stream
+  function splitmix32(a) {
     return function () {
-      let t = (a += 0x6D2B79F5) | 0;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      let z = (a += 0x9e3779b9) | 0;           // Weyl sequence
+      z ^= z >>> 16;  z = Math.imul(z, 0x21f0aaad);
+      z ^= z >>> 15;  z = Math.imul(z, 0x735a2d97);
+      z ^= z >>> 15;
+      return ((z >>> 0) / 4294967296);
     };
   }
   // Seed RNG purely from genome traits so previews and saved pool items match
   const seedBase = genomeHash(g);
-  const rng = mulberry32(seedBase);
+  const rng = splitmix32(seedBase);
 
   colorMode(HSB, 360, 100, 100);
   let chosenCols = [];
