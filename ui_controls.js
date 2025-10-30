@@ -377,21 +377,20 @@ function handlePoolClick(mx, my) {
   const viewportBottom = layout.viewportTop + layout.viewportHeight;
   if (my < layout.viewportTop || my >= viewportBottom) return;
 
-  const gridWidth = layout.cols * layout.cellSize;
-  if (mx < layout.originX || mx >= layout.originX + gridWidth) return;
+  if (mx < layout.originX || mx >= layout.originX + layout.viewportWidth) return;
 
   const localX = mx - layout.originX;
   const localY = my - layout.viewportTop + poolScroll;
   const c = floor(localX / layout.cellSize);
   const r = floor(localY / layout.cellSize);
-  if (c < 0 || c >= layout.cols || r < 0 || r >= layout.totalRows) return;
+  if (c < 0 || c >= layout.visibleCols || r < 0 || r >= layout.totalRows) return;
 
   const innerX = localX - c * layout.cellSize;
   const innerY = localY - r * layout.cellSize;
   const margin = (layout.cellSize - layout.tile) / 2;
   if (innerX < margin || innerX > layout.cellSize - margin || innerY < margin || innerY > layout.cellSize - margin) return;
 
-  const idx = r * layout.cols + c;
+  const idx = r * layout.visibleCols + c;
   if (idx < 0 || idx >= pool.length) return;
   const genome = pool[idx];
   if (selectedParents.includes(genome)) selectedParents = selectedParents.filter(p => p !== genome);
