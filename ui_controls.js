@@ -310,6 +310,8 @@ function drawGroupFilterSection(layout, sliderMetrics) {
 
   return {
     bottom: dropdownY + dropdownH,
+    columnX: sliderMetrics.columnX,
+    buttonAreaWidth: sliderMetrics.buttonAreaWidth,
   };
 }
 

@@ -37,7 +37,8 @@ const GROUP_SPECS = {
       { x: 1, y: 0 },
       { x: 0, y: 1 },
     ],
-    mirrorAngles: [Math.PI / 4],
+    glideAngles: [Math.PI / 4],
+    glideOffsets: [{ u: 0.5, v: 0.5 }],
   },
   "333": {
     order: 3,
@@ -97,6 +98,7 @@ function drawWallpaperOn(pg, g) {
   const wedge = TWO_PI / spec.order;
   const hasMirrors = Array.isArray(spec.mirrorAngles) && spec.mirrorAngles.length > 0;
   const alpha = hasMirrors ? spec.mirrorAngles[0] : 0; // one representative mirror axis in world coords
+  const hasGlides = Array.isArray(spec.glideAngles) && spec.glideAngles.length > 0;
   const motif = createMotif(pg, g, a * 0.4, ensureGenomeColors(g), spec);
   const base = g.rotation || 0;
   const tileRange = 4;
@@ -131,13 +133,25 @@ function drawWallpaperOn(pg, g) {
             reflectAbout(pg, alpha, theta);
             drawMotifShape(pg, shape);
             pg.pop();
+          } else if (hasGlides) {
+            const ga = spec.glideAngles[0];
+            const glides = (Array.isArray(spec.glideOffsets) && spec.glideOffsets.length) ? spec.glideOffsets : [{ u: 0.5, v: 0.5 }];
+            for (const ofst of glides) {
+              const gx = (ofst.u * spec.basis[0].x + ofst.v * spec.basis[1].x) * a;
+              const gy = (ofst.u * spec.basis[0].y + ofst.v * spec.basis[1].y) * a;
+              pg.push();
+              pg.translate(p.x + gx, p.y + gy);
+              pg.rotate(theta);
+              reflectAbout(pg, ga, theta);
+              drawMotifShape(pg, shape);
+              pg.pop();
+            }
           }
         }
       }
     }
   }
 }
-
 
 // === motif & shapes ===
 function createMotif(pg, g, s, palette, spec) {
