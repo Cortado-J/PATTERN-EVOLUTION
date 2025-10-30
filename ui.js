@@ -300,7 +300,8 @@ function drawControls() {
 
   const buttonMetrics = renderActionButtonGrid(actions, layout, { buttonCols: 2 });
   const sliderMetrics = drawMutationSliderSection(layout, buttonMetrics);
-  const sizeMetrics = drawPatternSizeSection(layout, sliderMetrics);
+  const groupMetrics = drawGroupFilterSection(layout, sliderMetrics);
+  const sizeMetrics = drawPatternSizeSection(layout, groupMetrics);
 
   const previewSpacing = max(24, buttonMetrics.buttonW * 0.2);
   const previewX = buttonMetrics.columnX + buttonMetrics.buttonAreaWidth + previewSpacing;

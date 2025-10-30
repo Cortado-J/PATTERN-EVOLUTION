@@ -234,7 +234,7 @@ function withMeta(g) {
 
 // === genome creation ===
 function randomGenome() {
-  const groups = ["632", "*632", "442", "*442", "333", "*333", "2222", "*2222"];
+  const groups = ["632", "*632", "442", "*442", "4*2", "333", "*333", "3*3", "2222", "*2222"];
   const paletteKeys = Object.keys(palettes);
   const motifScale = random(48, 88);
   const hueShift = random(-12, 12);
@@ -274,7 +274,7 @@ function mutateGenome(g, rate = 0.25) {
   let scaleJitter = lerp(1, random(0.9, 1.15), rate);
   m.motifScale = constrain(m.motifScale * scaleJitter, 32, 140);
   if (random() < 0.12 * rate) m.palette = random(Object.keys(palettes));
-  if (random() < 0.15 * rate) m.group = random(["632", "*632", "442", "*442", "333", "*333", "2222", "*2222"]);
+  if (random() < 0.15 * rate) m.group = random(["632", "*632", "442", "*442", "4*2", "333", "*333", "3*3", "2222", "*2222"]);
   const priorStyle = m.shapeStyle || "mixed";
   if (random() < 0.1 * rate) {
     const styles = ["curved", "straight", "mixed"];

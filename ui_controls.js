@@ -7,13 +7,18 @@ const MUTATION_STEP = 0.01;
 const PATTERN_SIZES = [1, 1.5, 2]; // More conservative size multipliers
 const PATTERN_SIZE_LABELS = ["1x", "1.5x", "2x"];
 
+// Available wallpaper groups for the dropdown filter
+const WALLPAPER_GROUPS = ["Any", "632", "*632", "442", "*442", "4*2", "333", "*333", "3*3", "2222", "*2222"];
+
 const uiRegions = {
   actionButtons: {},
   patternSizeButtons: {},
+  groupDropdown: null,
 };
 
 let mutationRate = 0.05; // default 5%
 let patternSizeIndex = 0; // default to 1x size
+let selectedGroupFilter = "Any"; // default to no group filter
 
 function getPatternSize() {
   return PATTERN_SIZES[patternSizeIndex];
@@ -261,6 +266,53 @@ function drawPatternSizeSection(layout, sliderMetrics) {
   };
 }
 
+function drawGroupFilterSection(layout, sliderMetrics) {
+  const dropdownY = layout.innerY + 210;
+  const dropdownH = 30;
+  const dropdownW = min(140, sliderMetrics.buttonAreaWidth);
+  const dropdownX = sliderMetrics.columnX;
+
+  // Check if we have enough space
+  const availableHeight = layout.innerY + layout.innerH - dropdownY;
+  if (availableHeight < dropdownH + 10) {
+    return { bottom: dropdownY };
+  }
+
+  // Draw the group filter label
+  stroke(0);
+  fill(60);
+  textAlign(LEFT, CENTER);
+  textSize(14);
+  text("Random Group:", dropdownX, dropdownY + dropdownH / 2);
+
+  // Draw the dropdown
+  const dropdownX2 = dropdownX + 95;
+  const region = { x: dropdownX2, y: dropdownY, w: dropdownW, h: dropdownH };
+  uiRegions.groupDropdown = region;
+
+  stroke(0);
+  fill(255);
+  rect(region.x, region.y, region.w, region.h, 6);
+  noStroke();
+  fill(0);
+  textAlign(CENTER, CENTER);
+  textSize(14);
+  text(selectedGroupFilter, region.x + region.w / 2, region.y + region.h / 2);
+
+  // Draw dropdown arrow
+  const arrowX = region.x + region.w - 12;
+  const arrowY = region.y + region.h / 2;
+  stroke(0);
+  strokeWeight(2);
+  line(arrowX - 4, arrowY - 3, arrowX, arrowY + 3);
+  line(arrowX + 4, arrowY - 3, arrowX, arrowY + 3);
+  strokeWeight(1);
+
+  return {
+    bottom: dropdownY + dropdownH,
+  };
+}
+
 function mousePressed() {
   if (typeof clearHoverPreview === "function") clearHoverPreview();
   if (uiRegions.actionButtons) {
@@ -280,6 +332,15 @@ function mousePressed() {
       setPatternSize(parseInt(index));
       return;
     }
+  }
+
+  // Check group filter dropdown
+  if (uiRegions.groupDropdown && pointInRect(mouseX, mouseY, uiRegions.groupDropdown)) {
+    const currentIndex = WALLPAPER_GROUPS.indexOf(selectedGroupFilter);
+    const nextIndex = (currentIndex + 1) % WALLPAPER_GROUPS.length;
+    selectedGroupFilter = WALLPAPER_GROUPS[nextIndex];
+    drawScreen();
+    return;
   }
 
   if (mutationSlider.region && pointInRect(mouseX, mouseY, mutationSlider.region)) return mutationSlider.beginDrag(mouseX);

@@ -31,6 +31,14 @@ const GROUP_SPECS = {
     ],
     mirrorAngles: [0, Math.PI / 4],
   },
+  "4*2": {
+    order: 4,
+    basis: [
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+    ],
+    mirrorAngles: [Math.PI / 4],
+  },
   "333": {
     order: 3,
     basis: [
@@ -45,6 +53,14 @@ const GROUP_SPECS = {
       { x: 0.5, y: Math.sqrt(3) / 2 },
     ],
     mirrorAngles: [0, Math.PI / 3],
+  },
+  "3*3": {
+    order: 3,
+    basis: [
+      { x: 1, y: 0 },
+      { x: 0.5, y: Math.sqrt(3) / 2 },
+    ],
+    mirrorAngles: [Math.PI / 6],
   },
   "2222": {
     order: 2,

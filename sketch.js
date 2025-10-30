@@ -114,7 +114,12 @@ function handleAction(action) {
 
   switch (action) {
     case "random": {
-      items.push({ genome: withMeta(randomGenome()), parents: [] });
+      const genome = randomGenome();
+      // Apply group filter if one is selected
+      if (typeof selectedGroupFilter !== "undefined" && selectedGroupFilter !== "Any") {
+        genome.group = selectedGroupFilter;
+      }
+      items.push({ genome: withMeta(genome), parents: [] });
       break;
     }
     case "clone": {
