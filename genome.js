@@ -234,7 +234,7 @@ function withMeta(g) {
 
 // === genome creation ===
 function randomGenome() {
-  const groups = ["632", "*632", "442", "*442", "4*2", "333", "*333", "3*3", "2222", "2*22", "*2222", "22*", "22x"];
+  const groups = ["632", "*632", "442", "*442", "4*2", "333", "*333", "3*3", "2222", "2*22", "*2222", "22*", "22x", "o"];
   const paletteKeys = Object.keys(palettes);
   const motifScale = random(48, 88);
   const hueShift = random(-12, 12);

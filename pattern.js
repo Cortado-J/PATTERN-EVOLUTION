@@ -109,6 +109,16 @@ const GROUP_SPECS = {
     // Mark this as requiring special handling
     requiresSpecialHandling: true,
   },
+  "o": {
+    // P1 - simplest wallpaper group, only translations
+    order: 1,  // No rotations
+    basis: [
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+    ],
+    // No mirrors, no glides, no special operations
+    // Just the motif repeated at each lattice point
+  },
 };
 
 function getGroupSpec(key) {
