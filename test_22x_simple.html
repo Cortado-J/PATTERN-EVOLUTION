@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Simple 22x (pgg) Test</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+    #info {
+      margin-bottom: 10px;
+      padding: 10px;
+      background: white;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <h3>22x (pgg) Pattern - Simple Test</h3>
+    <p>This shows a single asymmetric motif (arrow) repeated with pgg symmetry.<br>
+    The four copies per unit cell should show the glide reflections clearly.</p>
+  </div>
+  
+  <script>
+    let a = 200; // unit cell size (increased to accommodate larger arrows)
+    
+    function setup() {
+      createCanvas(800, 600);
+      noLoop();
+    }
+    
+    function draw() {
+      background(255);
+      
+      // Draw grid
+      stroke(200);
+      strokeWeight(0.5);
+      for (let x = 0; x <= width; x += a) {
+        line(x, 0, x, height);
+      }
+      for (let y = 0; y <= height; y += a) {
+        line(0, y, width, y);
+      }
+      
+      // Draw unit cell boundaries thicker
+      stroke(100);
+      strokeWeight(2);
+      for (let x = 0; x <= width; x += a) {
+        line(x, 0, x, height);
+      }
+      for (let y = 0; y <= height; y += a) {
+        line(0, y, width, y);
+      }
+      
+      // Draw half-lines to show glide positions
+      stroke(255, 200, 200);
+      strokeWeight(1);
+      for (let x = a/2; x <= width; x += a) {
+        line(x, 0, x, height);
+      }
+      for (let y = a/2; y <= height; y += a) {
+        line(0, y, width, y);
+      }
+      
+      // Draw pgg pattern
+      noStroke();
+      for (let i = 0; i < width/a + 1; i++) {
+        for (let j = 0; j < height/a + 1; j++) {
+          let px = i * a;
+          let py = j * a;
+          
+          // Draw an asymmetric arrow shape to clearly see transformations
+          
+          // 1. Original (black)
+          push();
+          translate(px, py);
+          fill(0, 0, 0);
+          drawArrow();
+          pop();
+          
+          // 2. Horizontal glide: shift by a/2, reflect vertically (red)
+          push();
+          translate(px + a/2, py);
+          scale(1, -1);  // vertical reflection
+          fill(255, 0, 0);
+          drawArrow();
+          pop();
+          
+          // 3. Vertical glide: reflect horizontally, shift by a/2 (blue)
+          push();
+          translate(px, py + a/2);
+          scale(-1, 1);  // horizontal reflection
+          fill(0, 0, 255);
+          drawArrow();
+          pop();
+          
+          // 4. Double glide: both reflections (green)
+          push();
+          translate(px + a/2, py + a/2);
+          scale(-1, -1);  // 180° rotation
+          fill(0, 200, 0);
+          drawArrow();
+          pop();
+        }
+      }
+      
+      // Draw legend (with smaller arrows for better fit)
+      push();
+      translate(20, height - 150);
+      fill(255);
+      rect(-15, -60, 300, 190);
+      
+      textAlign(LEFT, CENTER);
+      
+      push();
+      scale(0.4);  // Scale down legend arrows to 40% of main size
+      
+      fill(0);
+      text("Original", 100, -10);
+      drawArrow();
+      
+      fill(255, 0, 0);
+      translate(0, 80);
+      text("Horizontal glide", 100, -10);
+      push();
+      scale(1, -1);
+      drawArrow();
+      pop();
+      
+      fill(0, 0, 255);
+      translate(0, 80);
+      text("Vertical glide", 100, -10);
+      push();
+      scale(-1, 1);
+      drawArrow();
+      pop();
+      
+      fill(0, 200, 0);
+      translate(0, 80);
+      text("Double glide", 100, -10);
+      push();
+      scale(-1, -1);
+      drawArrow();
+      pop();
+      
+      pop();  // scale
+      pop();
+    }
+    
+    function drawArrow() {
+      // Draw an asymmetric arrow pointing right and up (scaled 3x for better fit)
+      beginShape();
+      vertex(0, 0);
+      vertex(45, -15);
+      vertex(30, -6);
+      vertex(30, -30);
+      vertex(15, -30);
+      vertex(15, -6);
+      vertex(0, 0);
+      endShape(CLOSE);
+    }
+  </script>
+</body>
+</html>

@@ -99,6 +99,16 @@ const GROUP_SPECS = {
     mirrorOffsets: [{ u: 0, v: 0 }, { u: 0.5, v: 0.5 }],  // mirrors at same positions as rotations for pmg
     // pmg: vertical mirrors + offset rotation centers = horizontal glides emerge
   },
+  "22x": {
+    order: 1,  // We'll handle the operations manually
+    basis: [
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+    ],
+    // pgg requires explicit glide reflections, not just rotation centers
+    // Mark this as requiring special handling
+    requiresSpecialHandling: true,
+  },
 };
 
 function getGroupSpec(key) {
@@ -116,6 +126,15 @@ function latticePointFrom(spec, a, i, j) {
 function drawWallpaperOn(pg, g) {
   const a = g.motifScale;
   const spec = getGroupSpec(g.group);
+  
+  // Debug: Check if 22x is being processed
+  let debugDrawCount = 0;
+  if (g.group === "22x") {
+    console.log("=== drawWallpaperOn called with 22x ===");
+    console.log("Group spec:", spec);
+    console.log("requiresSpecialHandling:", spec.requiresSpecialHandling);
+  }
+  
   const wedge = TWO_PI / spec.order;
   const hasMirrors = Array.isArray(spec.mirrorAngles) && spec.mirrorAngles.length > 0;
   const alpha = hasMirrors ? spec.mirrorAngles[0] : 0; // one representative mirror axis in world coords
@@ -140,7 +159,64 @@ function drawWallpaperOn(pg, g) {
       for (let j = -tileRange; j <= tileRange; j++) {
         const p = latticePointFrom(spec, a, i, j);
         
-        // Standard handling for all groups including 22*
+        // Special handling for 22x (pgg) - explicit glide reflections
+        if (g.group === "22x") {
+          // Debug logging for 22x pattern
+          if (i === 0 && j === 0 && shape === motif[0]) {
+            console.log("=== 22x (pgg) Debug Info ===");
+            console.log("Genome:", g);
+            console.log("motifScale (a):", a);
+            console.log("base rotation:", base);
+            console.log("Number of shapes in motif:", motif.length);
+            console.log("First shape:", shape);
+            console.log("Lattice point (0,0):", p);
+            console.log("Unit cell size:", a);
+            console.log("Positions for 4 copies:");
+            console.log("  1. Original at:", p.x, p.y);
+            console.log("  2. H-glide at:", p.x + a/2, p.y, "with vertical flip");
+            console.log("  3. V-glide at:", p.x, p.y + a/2, "with horizontal flip");
+            console.log("  4. Double at:", p.x + a/2, p.y + a/2, "with 180° rotation");
+          }
+          
+          // pgg pattern from glide reflections (matching reference code case 6)
+          // For pgg, ignore base rotation - the pattern is defined by glides
+          // This matches how the reference code handles pgg (case 6)
+          
+          // 1. Original motif at lattice point
+          pg.push();
+          pg.translate(p.x, p.y);
+          drawMotifShape(pg, shape);
+          pg.pop();
+          debugDrawCount++;
+          
+          // 2. Horizontal glide: translate by a/2, reflect vertically
+          pg.push();
+          pg.translate(p.x + a/2, p.y);
+          pg.scale(1, -1);
+          drawMotifShape(pg, shape);
+          pg.pop();
+          debugDrawCount++;
+          
+          // 3. Vertical glide: translate by a/2, reflect horizontally  
+          pg.push();
+          pg.translate(p.x, p.y + a/2);
+          pg.scale(-1, 1);
+          drawMotifShape(pg, shape);
+          pg.pop();
+          debugDrawCount++;
+          
+          // 4. Double glide: both transformations = 180° rotation
+          pg.push();
+          pg.translate(p.x + a/2, p.y + a/2);
+          pg.scale(-1, -1);
+          drawMotifShape(pg, shape);
+          pg.pop();
+          debugDrawCount++;
+          
+          continue;  // Skip standard handling for 22x
+        }
+        
+        // Standard handling for all other groups including 22*
         for (const rotOfst of rotationOffsets) {
           const rx = (rotOfst.u * spec.basis[0].x + rotOfst.v * spec.basis[1].x) * a;
           const ry = (rotOfst.u * spec.basis[0].y + rotOfst.v * spec.basis[1].y) * a;
@@ -247,10 +323,10 @@ function drawWallpaperOn(pg, g) {
       }
     }
     // Show rotation centers for 22*
-    if (g.group === "22*" && spec.rotationCenters) {
-      pg.fill(255, 200, 0, 120);
+    if (g.group === "22*" && spec.rotationOffsets) {
       pg.noStroke();
-      for (const center of spec.rotationCenters) {
+      pg.fill(255, 200, 0, 120); // Orange for 22*
+      for (const center of spec.rotationOffsets) {
         for (let i = -tileRange; i <= tileRange; i++) {
           for (let j = -tileRange; j <= tileRange; j++) {
             const p = latticePointFrom(spec, a, i, j);
@@ -261,7 +337,60 @@ function drawWallpaperOn(pg, g) {
         }
       }
     }
+    
+    // Show glide axes for 22x (pgg)
+    if (g.group === "22x") {
+      pg.strokeWeight(2);
+      pg.noFill();
+      
+      // Horizontal glide axes at y = 0 and y = 0.5
+      pg.stroke(255, 0, 160, 160); // Magenta for horizontal glides
+      for (let i = -tileRange; i <= tileRange; i++) {
+        for (let j = -tileRange; j <= tileRange; j++) {
+          const p = latticePointFrom(spec, a, i, j);
+          // Glide at y = 0 (through lattice points)
+          pg.line(p.x - L, p.y, p.x + L, p.y);
+          // Glide at y = 0.5
+          pg.line(p.x - L, p.y + a/2, p.x + L, p.y + a/2);
+        }
+      }
+      
+      // Vertical glide axes at x = 0 and x = 0.5
+      pg.stroke(0, 255, 160, 160); // Cyan for vertical glides
+      for (let i = -tileRange; i <= tileRange; i++) {
+        for (let j = -tileRange; j <= tileRange; j++) {
+          const p = latticePointFrom(spec, a, i, j);
+          // Glide at x = 0 (through lattice points)
+          pg.line(p.x, p.y - L, p.x, p.y + L);
+          // Glide at x = 0.5
+          pg.line(p.x + a/2, p.y - L, p.x + a/2, p.y + L);
+        }
+      }
+      
+      // Show the four 2-fold rotation centers that result from the glides
+      pg.noStroke();
+      pg.fill(255, 200, 0, 80); // Semi-transparent orange
+      for (let i = -tileRange; i <= tileRange; i++) {
+        for (let j = -tileRange; j <= tileRange; j++) {
+          const p = latticePointFrom(spec, a, i, j);
+          // Centers at (0,0), (a/2,0), (0,a/2), (a/2,a/2)
+          pg.ellipse(p.x, p.y, 6, 6);
+          pg.ellipse(p.x + a/2, p.y, 6, 6);
+          pg.ellipse(p.x, p.y + a/2, 6, 6);
+          pg.ellipse(p.x + a/2, p.y + a/2, 6, 6);
+        }
+      }
+    }
     pg.pop();
+  }
+  
+  // Report debug info for 22x
+  if (g.group === "22x") {
+    console.log("=== 22x Pattern Complete ===");
+    console.log("Total shapes drawn:", debugDrawCount);
+    console.log("Expected: ~", motif.length * 4 * (tileRange * 2 + 1) * (tileRange * 2 + 1), 
+                "(", motif.length, "shapes × 4 copies ×", (tileRange * 2 + 1) * (tileRange * 2 + 1), "tiles)");
+    console.log("=============================");
   }
 }
 

@@ -8,7 +8,7 @@ const PATTERN_SIZES = [1, 1.5, 2]; // More conservative size multipliers
 const PATTERN_SIZE_LABELS = ["1x", "1.5x", "2x"];
 
 // Available wallpaper groups for the dropdown filter
-const WALLPAPER_GROUPS = ["Any", "632", "*632", "442", "*442", "4*2", "333", "*333", "3*3", "2222", "2*22", "*2222", "22*"];
+const WALLPAPER_GROUPS = ["Any", "632", "*632", "442", "*442", "4*2", "333", "*333", "3*3", "2222", "2*22", "*2222", "22*", "22x"];
 
 const uiRegions = {
   actionButtons: {},
