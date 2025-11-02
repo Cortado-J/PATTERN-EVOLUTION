@@ -342,7 +342,12 @@ function drawWallpaperOn(pg, g) {
   const hasGlides = Array.isArray(spec.glideAngles) && spec.glideAngles.length > 0;
   const motif = createMotif(pg, g, a * 0.4, ensureGenomeColors(g), spec);
   const base = g.rotation || 0;
-  const tileRange = 4;
+  const cellBounds = estimateCellSize({ group: g.group, motifScale: a });
+  const cellWidth = Math.max(1, cellBounds.w || 1);
+  const cellHeight = Math.max(1, cellBounds.h || 1);
+  const rangeX = Math.ceil((pg.width || 0) / (2 * cellWidth)) + 2;
+  const rangeY = Math.ceil((pg.height || 0) / (2 * cellHeight)) + 2;
+  const tileRange = Math.max(4, rangeX, rangeY);
 
   // helper: reflect about world-angle `alpha` after rotating by `theta`
   function reflectAbout(pg, alpha, theta) {

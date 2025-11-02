@@ -161,9 +161,13 @@
       const baseCell = estimateCellSize(baseGenome);
       const safeCellW = Math.max(1, baseCell.w);
       const safeCellH = Math.max(1, baseCell.h);
+      const horizontalSpan = safeCellW * PATTERN_REPEATS_X;
+      const minimumVerticalSpan = 2 * horizontalSpan;
+      const configuredVerticalSpan = safeCellH * PATTERN_REPEATS_Y;
+      const verticalSpan = Math.max(minimumVerticalSpan, configuredVerticalSpan);
       let scaleFactor = Math.min(
-        rect.width / (safeCellW * PATTERN_REPEATS_X),
-        rect.height / (safeCellH * PATTERN_REPEATS_Y)
+        rect.width / horizontalSpan,
+        rect.height / verticalSpan
       );
       if (!Number.isFinite(scaleFactor) || scaleFactor <= 0) {
         scaleFactor = 1;
@@ -183,7 +187,10 @@
         pg.resizeCanvas(rect.width, rect.height);
       }
       pg.background(20);
+      pg.push();
+      pg.translate(pg.width / 2, pg.height / 2);
       drawWallpaperOn(pg, currentGenome);
+      pg.pop();
     }
 
     function drawScreen() {
