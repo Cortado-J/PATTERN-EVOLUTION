@@ -112,17 +112,11 @@
     }
 
     function computeViewportRect() {
-      const vw = window.innerWidth || width;
-      const vh = window.innerHeight || height;
-      let rectWidth = vw;
-      let rectHeight = rectWidth / targetAspect;
-      if (rectHeight > vh) {
-        rectHeight = vh;
-        rectWidth = rectHeight * targetAspect;
-      }
+      const vw = Math.max(1, Math.round(window.innerWidth || width));
+      const vh = Math.max(1, Math.round(window.innerHeight || height));
       return {
-        width: Math.max(1, Math.round(rectWidth)),
-        height: Math.max(1, Math.round(rectHeight)),
+        width: vw,
+        height: vh,
       };
     }
 
@@ -164,7 +158,12 @@
       const horizontalSpan = safeCellW * PATTERN_REPEATS_X;
       const minimumVerticalSpan = 2 * horizontalSpan;
       const configuredVerticalSpan = safeCellH * PATTERN_REPEATS_Y;
-      const verticalSpan = Math.max(minimumVerticalSpan, configuredVerticalSpan);
+      const verticalSpanForViewport = horizontalSpan * (rect.height / rect.width);
+      const verticalSpan = Math.max(
+        minimumVerticalSpan,
+        configuredVerticalSpan,
+        verticalSpanForViewport
+      );
       let scaleFactor = Math.min(
         rect.width / horizontalSpan,
         rect.height / verticalSpan
