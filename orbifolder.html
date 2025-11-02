@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Orbifolder - Pattern Evolution</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #1a1a1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+    
+    #canvas-container {
+      position: relative;
+      cursor: pointer;
+      width: 100%;
+      height: 100vh;
+    }
+    
+    #group-label {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 48px;
+      font-weight: bold;
+      color: #ffffff;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+      pointer-events: none;
+      z-index: 10;
+    }
+    
+    #group-label.visible {
+      opacity: 1;
+    }
+    
+    .instructions {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #ffffff;
+      font-size: 18px;
+      text-align: center;
+      opacity: 0.7;
+      pointer-events: none;
+    }
+    
+    @media (max-height: 600px) {
+      #group-label {
+        font-size: 36px;
+        bottom: 10px;
+      }
+      .instructions {
+        font-size: 14px;
+        top: 10px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      #group-label {
+        font-size: 32px;
+      }
+      .instructions {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container">
+    <div class="instructions">Tap to cycle through patterns</div>
+    <div id="group-label"></div>
+  </div>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+  <script src="pattern.js"></script>
+  <script src="genome.js"></script>
+  
+  <script>
+    let palettes;
+    let currentGenome = null;
+    let state = 'pattern'; // 'pattern' or 'showing-group'
+    let pg; // p5.js graphics buffer for pattern
+    
+    // Palettes from the main application
+    palettes = {
+      warm: ["#e63946", "#f1faee", "#a8dadc", "#ffbe0b", "#fb5607"],
+      cool: ["#457b9d", "#1d3557", "#a8dadc", "#118ab2", "#06d6a0"],
+      earth: ["#2a9d8f", "#e9c46a", "#f4a261", "#264653", "#dda15e"],
+      vivid: ["#ffb703", "#fb8500", "#023047", "#8ecae6", "#219ebc"]
+    };
+    
+    function setup() {
+      createCanvas(windowWidth, windowHeight);
+      angleMode(RADIANS);
+      noLoop();
+      
+      // Create graphics buffer for pattern
+      pg = createGraphics(width, height);
+      
+      // Generate initial pattern
+      generateNewPattern();
+      drawScreen();
+    }
+    
+    function draw() {
+      // Main draw is handled by drawScreen()
+    }
+    
+    function drawScreen() {
+      background(20);
+      
+      if (state === 'pattern' && currentGenome) {
+        // Draw the pattern
+        image(pg, 0, 0);
+        document.getElementById('group-label').classList.remove('visible');
+      } else if (state === 'showing-group' && currentGenome) {
+        // Show the group label
+        background(20);
+        document.getElementById('group-label').textContent = currentGenome.group;
+        document.getElementById('group-label').classList.add('visible');
+      }
+    }
+    
+    function generateNewPattern() {
+      // Generate a random genome
+      currentGenome = randomGenome();
+      
+      // Clear and draw pattern on graphics buffer
+      pg.clear();
+      pg.background(20);
+      
+      // Calculate appropriate scale for the pattern
+      const scale = displayScaleForPattern(currentGenome, width, height, 3);
+      currentGenome.motifScale = currentGenome.motifScale * scale;
+      
+      // Draw the wallpaper pattern
+      drawWallpaperOn(pg, currentGenome);
+      
+      state = 'pattern';
+    }
+    
+    function handleInteraction() {
+      if (state === 'pattern') {
+        // Show the group
+        state = 'showing-group';
+      } else if (state === 'showing-group') {
+        // Generate new pattern
+        generateNewPattern();
+      }
+      drawScreen();
+    }
+    
+    // Mouse events for desktop
+    function mousePressed() {
+      handleInteraction();
+      return false; // Prevent default behavior
+    }
+    
+    // Touch events for mobile
+    function touchStarted() {
+      handleInteraction();
+      return false; // Prevent default behavior
+    }
+    
+    // Also handle clicks on the container div for mobile compatibility
+    document.addEventListener('DOMContentLoaded', function() {
+      const container = document.getElementById('canvas-container');
+      container.addEventListener('click', handleInteraction);
+      container.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        handleInteraction();
+      });
+    });
+    
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight);
+      pg = createGraphics(width, height);
+      if (currentGenome) {
+        generateNewPattern();
+      }
+      drawScreen();
+    }
+    
+    // Helper function to ensure genome has colors
+    function ensureGenomeColors(g) {
+      if (!g) return [];
+      if (!Array.isArray(g.colors) || g.colors.length === 0) {
+        g.colors = paletteColorsForKey(g.palette);
+      } else {
+        g.colors = g.colors.map(normalizeColorHSB);
+      }
+      return g.colors;
+    }
+    
+    // Helper function to get palette colors
+    function paletteColorsForKey(key) {
+      if (!key || !palettes || !palettes[key]) return [];
+      return palettes[key].map(hex => normalizeColorHSB(hexToHSB(hex)));
+    }
+    
+    // Include necessary helper functions from genome.js
+    function normalizeColorHSB(colorHSB) {
+      if (!colorHSB) return { h: 0, s: 60, b: 80 };
+      const h = ((colorHSB.h ?? 0) % 360 + 360) % 360;
+      const s = constrain(colorHSB.s ?? 60, 0, 100);
+      const b = constrain(colorHSB.b ?? 80, 0, 100);
+      return { h, s, b };
+    }
+    
+    function hexToHSB(hex) {
+      if (typeof hex !== "string") return { h: 0, s: 0, b: 100 };
+      let str = hex.trim().replace(/^#/, "");
+      if (str.length === 3) {
+        str = str.split("").map(ch => ch + ch).join("");
+      }
+      if (str.length !== 6) return { h: 0, s: 0, b: 100 };
+      const intVal = parseInt(str, 16);
+      if (Number.isNaN(intVal)) return { h: 0, s: 0, b: 100 };
+      const r = (intVal >> 16) & 0xff;
+      const g = (intVal >> 8) & 0xff;
+      const b = intVal & 0xff;
+      return rgbToHSB(r, g, b);
+    }
+    
+    function rgbToHSB(r, g, b) {
+      const rn = constrain(r, 0, 255) / 255;
+      const gn = constrain(g, 0, 255) / 255;
+      const bn = constrain(b, 0, 255) / 255;
+      const maxVal = Math.max(rn, gn, bn);
+      const minVal = Math.min(rn, gn, bn);
+      const delta = maxVal - minVal;
+
+      let h;
+      if (delta === 0) {
+        h = 0;
+      } else if (maxVal === rn) {
+        h = ((gn - bn) / delta) % 6;
+      } else if (maxVal === gn) {
+        h = (bn - rn) / delta + 2;
+      } else {
+        h = (rn - gn) / delta + 4;
+      }
+      h = (h * 60 + 360) % 360;
+
+      const s = maxVal === 0 ? 0 : (delta / maxVal) * 100;
+      const v = maxVal * 100;
+
+      return { h, s, b: v };
+    }
+  </script>
+</body>
+</html>
