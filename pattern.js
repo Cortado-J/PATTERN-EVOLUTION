@@ -403,7 +403,13 @@ function drawSymmetryGuides(pg, spec, g, { a, tileRange }){
     }
   }
   {
-    const hasOrder6 = (spec.generators||[]).some(gen => gen.type === "rotation" && (gen.order||0) === 6);
+    const gens = (spec.generators||[]);
+    const hasOrder6 = gens.some(gen => gen.type === "rotation" && (gen.order||0) === 6);
+    const hasOrder3 = gens.some(gen => gen.type === "rotation" && (gen.order||0) === 3);
+    const hasOrder4 = gens.some(gen => gen.type === "rotation" && (gen.order||0) === 4);
+    const hasOrder2 = gens.some(gen => gen.type === "rotation" && (gen.order||0) === 2);
+    const hasReflections = gens.some(gen => gen.type === "reflection");
+    const hasGlides = gens.some(gen => gen.type === "glide");
     const len1 = Math.hypot(b1.x, b1.y), len2 = Math.hypot(b2.x, b2.y);
     const dot = b1.x*b2.x + b1.y*b2.y;
     const ang = Math.acos(Math.max(-1, Math.min(1, dot / Math.max(1e-9, len1*len2))));
@@ -414,11 +420,37 @@ function drawSymmetryGuides(pg, spec, g, { a, tileRange }){
       for (const o of offs3) addCenter(uvToXY(o.u, o.v), 3);
       for (const o of offs2) addCenter(uvToXY(o.u, o.v), 2);
     }
+    const triLatticeP3 = !hasOrder6 && hasOrder3 && Math.abs(len1 - len2) / Math.max(1, len1) < 0.02 && Math.abs(ang - Math.PI/3) < 0.03;
+    if (triLatticeP3) {
+      const offs3p3 = [{u:1/3, v:1/3}, {u:2/3, v:2/3}];
+      for (const o of offs3p3) addCenter(uvToXY(o.u, o.v), 3);
+    }
+    const squareLattice = Math.abs(len1 - len2) / Math.max(1, len1) < 0.02 && Math.abs(ang - Math.PI/2) < 0.03;
+    if (squareLattice && hasOrder4 && hasGlides && !hasReflections) {
+      const offs2p4g = [{u:0.5, v:0}, {u:0, v:0.5}];
+      for (const o of offs2p4g) addCenter(uvToXY(o.u, o.v), 2);
+    }
+    if (squareLattice && hasOrder4) {
+      addCenter(uvToXY(0.5, 0.5), 4);
+      const offs2p4 = [{u:0.5, v:0}, {u:0, v:0.5}];
+      for (const o of offs2p4) addCenter(uvToXY(o.u, o.v), 2);
+    }
+    if (hasOrder2) {
+      const offs2rect = [{u:0, v:0}, {u:0.5, v:0}, {u:0, v:0.5}, {u:0.5, v:0.5}];
+      for (const o of offs2rect) addCenter(uvToXY(o.u, o.v), 2);
+    }
+    const reflAngles = gens.filter(gen=>gen.type==="reflection").map(gen=>gen.angle||0);
+    const hasHoriz = reflAngles.some(a=> Math.abs(((a%Math.PI)+Math.PI)%Math.PI - 0) < 1e-3);
+    const hasVert  = reflAngles.some(a=> Math.abs((((a-Math.PI/2)%Math.PI)+Math.PI)%Math.PI) < 1e-3);
+    if (hasHoriz) addLine(0, uvToXY(0, 0.5), false);
+    if (hasVert)  addLine(Math.PI/2, uvToXY(0.5, 0), false);
   }
-  // Draw line guides first (behind rotation centres)
   for (const l of lineGuides){
     if (l.isGlide){ pg.stroke(255,0,160,160); } else { pg.stroke(0,180,255,160); }
     pg.strokeWeight(1);
+    if (pg.drawingContext && pg.drawingContext.setLineDash) {
+      pg.drawingContext.setLineDash(l.isGlide ? [6,6] : []);
+    }
     const dx = Math.cos(l.ang), dy = Math.sin(l.ang);
     for (let i=-tileRange; i<=tileRange; i++){
       for (let j=-tileRange; j<=tileRange; j++){
@@ -426,6 +458,9 @@ function drawSymmetryGuides(pg, spec, g, { a, tileRange }){
         const cx = p.x + l.P.x, cy = p.y + l.P.y;
         pg.line(cx - dx*L, cy - dy*L, cx + dx*L, cy + dy*L);
       }
+    }
+    if (pg.drawingContext && pg.drawingContext.setLineDash) {
+      pg.drawingContext.setLineDash([]);
     }
   }
   // Compute orbits among rotation centres using group transforms (modulo lattice)
@@ -445,16 +480,36 @@ function drawSymmetryGuides(pg, spec, g, { a, tileRange }){
   }
   function applyToPoint(M, x, y){ return { x: M.a*x + M.c*y + M.e, y: M.b*x + M.d*y + M.f }; }
 
+  {
+    const locMax = new Map();
+    for (const rc of rotCenters){
+      const uv = xyToUV(rc.C.x, rc.C.y);
+      const k = uvKey(uv.u, uv.v);
+      const prev = locMax.get(k) || 0;
+      if ((rc.ord||1) > prev) locMax.set(k, rc.ord||1);
+    }
+    const kept = [];
+    for (const rc of rotCenters){
+      const uv = xyToUV(rc.C.x, rc.C.y);
+      const k = uvKey(uv.u, uv.v);
+      if ((rc.ord||1) >= (locMax.get(k) || (rc.ord||1))) kept.push(rc);
+    }
+    rotCenters.length = 0;
+    Array.prototype.push.apply(rotCenters, kept);
+  }
+
   const n = rotCenters.length;
   const parents = Array.from({length:n}, (_,i)=>i);
   const find = (x)=> parents[x]===x?x:(parents[x]=find(parents[x]));
   const unite = (a,b)=>{ a=find(a); b=find(b); if (a!==b) parents[b]=a; };
 
+  const uvArr = [];
   const uvKeys = [];
   const uvMap = new Map();
   for (let i=0;i<n;i++){
     const { C } = rotCenters[i];
     const { u, v } = xyToUV(C.x, C.y);
+    uvArr[i] = { u, v };
     const k = uvKey(u, v);
     uvKeys[i] = k;
     if (!uvMap.has(k)) uvMap.set(k, i);
@@ -486,14 +541,22 @@ function drawSymmetryGuides(pg, spec, g, { a, tileRange }){
       transforms2.push(Rk);
     }
   }
+  function wrap01Delta(d){ return d - Math.round(d); }
   for (let i=0;i<n;i++){
     for (const M of transforms2){
       const P = rotCenters[i].C;
       const Pp = applyToPoint(M, P.x, P.y);
       const uvp = xyToUV(Pp.x, Pp.y);
-      const kp = uvKey(uvp.u, uvp.v);
-      const j = uvMap.get(kp);
-      if (j!=null && (rotCenters[i].ord === rotCenters[j].ord)) unite(i,j);
+      let bestJ = -1;
+      let bestD = 1e9;
+      for (let j=0;j<n;j++){
+        if (rotCenters[i].ord !== rotCenters[j].ord) continue;
+        const du = wrap01Delta(uvp.u - uvArr[j].u);
+        const dv = wrap01Delta(uvp.v - uvArr[j].v);
+        const d2 = du*du + dv*dv;
+        if (d2 < bestD){ bestD = d2; bestJ = j; }
+      }
+      if (bestJ >= 0 && bestD < 1e-5) unite(i, bestJ);
     }
   }
   const orbitId = new Map();
@@ -503,6 +566,33 @@ function drawSymmetryGuides(pg, spec, g, { a, tileRange }){
     const r = find(i);
     if (!orbitId.has(r)) orbitId.set(r, orbitCount++);
     centerOrbit[i] = orbitId.get(r);
+  }
+  const centerAngle = new Array(n).fill(0);
+  const orbitMembers = Array.from({length: orbitCount}, ()=>[]);
+  for (let i=0;i<n;i++){ orbitMembers[centerOrbit[i]].push(i); }
+  for (let oid=0; oid<orbitCount; oid++){
+    const members = orbitMembers[oid];
+    if (!members.length) continue;
+    let root = members[0];
+    for (const idx of members){
+      const uvr = uvArr[idx];
+      const uvroot = uvArr[root];
+      if (uvr.u < uvroot.u - 1e-6 || (Math.abs(uvr.u-uvroot.u)<1e-6 && uvr.v < uvroot.v)) root = idx;
+    }
+    for (const j of members){
+      let bestD = 1e9; let bestAng = 0;
+      for (const M of transforms2){
+        const detM = M.a*M.d - M.b*M.c;
+        if (Math.abs(detM - 1) > 1e-6) continue;
+        const Pp = applyToPoint(M, rotCenters[root].C.x, rotCenters[root].C.y);
+        const uvp = xyToUV(Pp.x, Pp.y);
+        const du = (uvp.u - uvArr[j].u) - Math.round(uvp.u - uvArr[j].u);
+        const dv = (uvp.v - uvArr[j].v) - Math.round(uvp.v - uvArr[j].v);
+        const d2 = du*du + dv*dv;
+        if (d2 < bestD){ bestD = d2; bestAng = Math.atan2(M.b, M.a); }
+      }
+      if (bestD < 1e-5) centerAngle[j] = bestAng;
+    }
   }
   for (let idx=0; idx<n; idx++){
     const rc = rotCenters[idx];
@@ -516,20 +606,26 @@ function drawSymmetryGuides(pg, spec, g, { a, tileRange }){
         const size = 16;
         const r = size * 0.5;
         if (ord === 2) {
+          const phi = centerAngle[idx] || 0;
           const halfH = r;
           const halfW = r * 0.5;
+          const pts = [
+            {x:0, y:-halfH}, {x:halfW, y:0}, {x:0, y:halfH}, {x:-halfW, y:0}
+          ];
           pg.beginShape();
-          pg.vertex(cx, cy - halfH);
-          pg.vertex(cx + halfW, cy);
-          pg.vertex(cx, cy + halfH);
-          pg.vertex(cx - halfW, cy);
+          for (const v of pts){
+            const vx = cx + Math.cos(phi)*v.x - Math.sin(phi)*v.y;
+            const vy = cy + Math.sin(phi)*v.x + Math.cos(phi)*v.y;
+            pg.vertex(vx, vy);
+          }
           pg.endShape(CLOSE);
         } else {
           const sides = ord >= 6 ? 6 : (ord >= 4 ? 4 : 3);
-          const rot = sides === 3 ? -Math.PI/2 : 0;
+          const baseRot = sides === 3 ? -Math.PI/2 : 0;
+          const phi = (centerAngle[idx] || 0) + baseRot;
           pg.beginShape();
           for (let k=0; k<sides; k++){
-            const ang = rot + (2*Math.PI*k)/sides;
+            const ang = phi + (2*Math.PI*k)/sides;
             const vx = cx + Math.cos(ang) * r;
             const vy = cy + Math.sin(ang) * r;
             pg.vertex(vx, vy);
