@@ -24,7 +24,7 @@
     
     #canvas-container {
       position: relative;
-      cursor: pointer;
+      cursor: default;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -42,11 +42,11 @@
       top: 24px;
       left: 50%;
       transform: translate(-50%, 0);
-      font-size: 42px;
+      font-size: 32px;
       font-weight: 700;
       color: #ffffff;
       background: rgba(0, 0, 0, 0.78);
-      padding: 10px 22px;
+      padding: 0 16px;
       border-radius: 6px;
       border: 2px solid rgba(255, 255, 255, 0.85);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -57,11 +57,16 @@
       max-width: calc(100% - 48px);
       text-align: center;
       white-space: nowrap;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 56px;
+      min-width: 56px;
     }
     #next-button {
       position: absolute;
       right: 24px;
-      bottom: 24px;
+      top: 24px;
       font-size: 32px;
       font-weight: 700;
       color: #ffffff;
@@ -81,6 +86,30 @@
       cursor: pointer;
     }
     #next-button.visible { opacity: 1; pointer-events: auto; }
+
+    #state-button {
+      position: absolute;
+      left: 24px;
+      top: 24px;
+      font-size: 32px;
+      font-weight: 700;
+      color: #ffffff;
+      background: rgba(0, 0, 0, 0.78);
+      border-radius: 6px;
+      border: 2px solid rgba(255, 255, 255, 0.85);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out;
+      pointer-events: none;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      cursor: pointer;
+    }
+    #state-button.visible { opacity: 1; pointer-events: auto; }
     
     #group-label.visible {
       opacity: 1;
@@ -91,14 +120,13 @@
     
     @media (max-height: 600px) {
       #group-label {
-        font-size: 36px;
-        top: 10px;
+        font-size: 28px;
       }
     }
 
     @media (max-width: 480px) {
       #group-label {
-        font-size: 32px;
+        font-size: 24px;
       }
     }
   </style>
@@ -106,6 +134,7 @@
 <body>
   <div id="canvas-container">
     <div id="group-label"></div>
+    <div id="state-button" aria-label="Help">?</div>
     <div id="next-button" aria-label="Next pattern">➜</div>
   </div>
   
@@ -131,6 +160,7 @@
 
     let containerEl;
     let groupLabelEl;
+    let stateButtonEl;
     let nextButtonEl;
     let canvas;
     let pg;
@@ -162,6 +192,7 @@
     function setup() {
       containerEl = document.getElementById("canvas-container");
       groupLabelEl = document.getElementById("group-label");
+      stateButtonEl = document.getElementById("state-button");
       nextButtonEl = document.getElementById("next-button");
 
       const { width: w, height: h } = applyContainerSize();
@@ -174,6 +205,22 @@
 
       generateNewPattern();
       drawScreen();
+
+      if (stateButtonEl) {
+        stateButtonEl.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (state === "pattern") {
+            state = "guides";
+          } else if (state === "guides") {
+            state = "showing-group";
+          } else {
+            state = "pattern";
+          }
+          renderPattern();
+          drawScreen();
+        });
+      }
 
       if (nextButtonEl) {
         nextButtonEl.addEventListener('click', (e) => {
@@ -239,21 +286,24 @@
       if (currentGenome && pg) {
         image(pg, 0, 0, width, height);
       }
-      if (!groupLabelEl) return;
-      if (state === "showing-group" && currentGenome) {
-        groupLabelEl.innerHTML = colorOrbifold(currentGenome.group);
-        groupLabelEl.classList.add("visible");
-        if (nextButtonEl) {
-          nextButtonEl.style.top = "";
-          nextButtonEl.style.left = "";
-          nextButtonEl.style.height = "";
-          nextButtonEl.style.width = "";
-          nextButtonEl.style.fontSize = "";
-          nextButtonEl.classList.add('visible');
+      // Always show the state and next buttons
+      if (stateButtonEl) {
+        if (state === "pattern") stateButtonEl.textContent = "?";
+        else if (state === "guides") stateButtonEl.textContent = "??";
+        else stateButtonEl.textContent = "⬅";
+        stateButtonEl.classList.add('visible');
+      }
+      if (nextButtonEl) {
+        nextButtonEl.classList.add('visible');
+      }
+      // Group label visibility only in showing-group
+      if (groupLabelEl) {
+        if (state === "showing-group" && currentGenome) {
+          groupLabelEl.innerHTML = colorOrbifold(currentGenome.group);
+          groupLabelEl.classList.add("visible");
+        } else {
+          groupLabelEl.classList.remove("visible");
         }
-      } else {
-        groupLabelEl.classList.remove("visible");
-        if (nextButtonEl) nextButtonEl.classList.remove('visible');
       }
     }
 
@@ -278,34 +328,7 @@
       drawScreen();
     }
 
-    function handleInteraction(targetId) {
-      if (state === "pattern") {
-        state = "guides";
-        renderPattern();
-        drawScreen();
-      } else if (state === "guides") {
-        state = "showing-group";
-        renderPattern();
-        drawScreen();
-      } else if (state === "showing-group") {
-        // Click anywhere except the next button: return to pattern (hide group & guides)
-        if (targetId !== 'next-button') {
-          state = "pattern";
-          renderPattern();
-          drawScreen();
-        }
-      }
-    }
-
-    function mousePressed(e) {
-      handleInteraction(e?.target?.id);
-      return false;
-    }
-
-    function touchStarted(e) {
-      handleInteraction(e?.target?.id);
-      return false;
-    }
+    // Disable general click/touch interactions; only buttons trigger actions
 
     function windowResized() {
       const { width: w, height: h } = applyContainerSize();
