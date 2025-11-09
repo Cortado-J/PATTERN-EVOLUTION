@@ -564,6 +564,16 @@ function computeRotationAngles(ctx, graph, orbitInfo) {
     }
   }
 
+  // Special handling for 632 and *632: rotate 2-fold guides by 30 degrees
+  
+  if (ctx.genome && (ctx.genome.group === "632" || ctx.genome.group === "*632")) {
+    for (let i = 0; i < n; i++) {
+      if ((ctx.rotCenters[i].ord || 2) === 2) {
+        centerAngle[i] += Math.PI / 3;
+      }
+    }
+  }
+
   return centerAngle;
 }
 
@@ -573,9 +583,9 @@ function renderRotationCenters(ctx, meta) {
     typeof window !== "undefined" && window.matchMedia
       ? window.matchMedia("(pointer: coarse)").matches
       : false;
-  const mobileScaleBoost = isCoarsePointer ? 6 : 1;
-  const maxRatio = isCoarsePointer ? 1.5 : 0.5;
-  const minSize = isCoarsePointer ? 48 : 12;
+  const mobileScaleBoost = isCoarsePointer ? 0.75 : 1;
+  const maxRatio = isCoarsePointer ? 0.8 : 0.5;
+  const minSize = isCoarsePointer ? 6 : 12;
 
   for (let idx = 0; idx < ctx.rotCenters.length; idx++) {
     const rc = ctx.rotCenters[idx];
@@ -588,22 +598,6 @@ function renderRotationCenters(ctx, meta) {
     let maxSize = ctx.a * maxRatio;
     if (isCoarsePointer) maxSize = Math.max(maxSize, ctx.fallbackNeighborDist * 0.8);
     if (markerSize > maxSize) markerSize = maxSize;
-    
-    // Debug logging for mobile rotation guide calculations
-    if (idx === 0 && typeof console !== "undefined") {
-      console.log("Rotation guide sizing:", {
-        isCoarsePointer,
-        neighborDist,
-        baseDist,
-        markerSize,
-        minSize,
-        maxSize,
-        mobileScaleBoost,
-        maxRatio,
-        "ctx.a": ctx.a,
-        fallbackNeighborDist: ctx.fallbackNeighborDist
-      });
-    }
 
     const col = ctx.rotColors[(displayOrbit[idx] ?? centerOrbit[idx]) % ctx.rotColors.length];
     ctx.pg.stroke(0);
