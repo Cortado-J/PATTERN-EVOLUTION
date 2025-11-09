@@ -5,447 +5,563 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Orbifolder - Pattern Evolution</title>
   <style>
+    :root {
+      color-scheme: dark;
+    }
+
     body {
       margin: 0;
       padding: 0;
-      background: #1a1a1a;
+      background: radial-gradient(circle at top, #1d1d2f 0%, #0c0c12 60%, #050507 100%);
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      font-family: Arial, sans-serif;
+      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+      color: #f8f9ff;
       overflow: hidden;
       -webkit-user-select: none;
       -moz-user-select: none;
-      -ms-user-select: none;
       user-select: none;
-      -webkit-touch-callout: none;
-    }
-    
-    #canvas-container {
-      position: relative;
-      cursor: default;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       touch-action: manipulation;
     }
 
-    canvas {
-      display: block;
-      max-width: 100%;
-      max-height: 100%;
-    }
-    
-    #group-label {
-      position: absolute;
-      top: 24px;
-      left: 50%;
-      transform: translate(-50%, 0);
-      font-size: 48px;
-      font-weight: 700;
-      color: #ffffff;
-      background: rgba(0, 0, 0, 0.78);
-      padding: 0 16px;
-      border-radius: 6px;
-      border: 2px solid rgba(255, 255, 255, 0.85);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-      opacity: 0;
-      transition: opacity 0.25s ease-in-out;
-      pointer-events: none;
-      z-index: 10;
-      max-width: calc(100% - 48px);
-      text-align: center;
-      white-space: nowrap;
+    #app {
+      width: min(1180px, 96vw);
+      height: min(900px, 94vh);
+      background: rgba(18, 18, 28, 0.92);
+      border-radius: 18px;
+      border: 1px solid rgba(136, 150, 255, 0.22);
+      box-shadow: 0 24px 64px rgba(8, 8, 16, 0.6);
       display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 56px;
-      min-width: 56px;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
     }
-    #next-button {
-      position: absolute;
-      right: 24px;
-      top: 24px;
-      font-size: 32px;
-      font-weight: 700;
-      color: #ffffff;
-      background: rgba(0, 0, 0, 0.78);
-      border-radius: 6px;
-      border: 2px solid rgba(255, 255, 255, 0.85);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-      opacity: 0;
-      transition: opacity 0.2s ease-in-out;
-      pointer-events: none;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 56px;
-      height: 56px;
-      cursor: pointer;
-      transform-origin: center;
-    }
-    #next-button.visible { opacity: 1; pointer-events: auto; }
 
-    #state-button {
-      position: absolute;
-      left: 24px;
-      top: 24px;
-      font-size: 32px;
-      font-weight: 700;
-      color: #ffffff;
-      background: rgba(0, 0, 0, 0.78);
-      border-radius: 6px;
-      border: 2px solid rgba(255, 255, 255, 0.85);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-      opacity: 0;
-      transition: opacity 0.2s ease-in-out;
-      pointer-events: none;
-      z-index: 10;
+    header {
+      padding: 18px 28px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      background: linear-gradient(135deg, rgba(41, 44, 78, 0.72), rgba(26, 26, 46, 0.72));
+      backdrop-filter: blur(10px);
+      z-index: 4;
+    }
+
+    header h1 {
+      font-size: 22px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 0;
+      color: #d7dcff;
+    }
+
+    header .meta {
+      font-size: 14px;
+      color: rgba(214, 218, 255, 0.72);
+    }
+
+    #pattern-view {
+      position: relative;
+      flex: 1 1 55%;
+      background: repeating-conic-gradient(from 45deg, rgba(24, 24, 38, 0.65) 0deg 45deg, rgba(12, 12, 20, 0.9) 45deg 90deg);
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 56px;
-      height: 56px;
-      cursor: pointer;
+      overflow: hidden;
     }
-    #state-button.visible { opacity: 1; pointer-events: auto; }
-    #state-button.state-back {
-      transform: scaleX(-1);
+
+    #pattern-view canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
     }
-    
-    #group-label.visible {
+
+    .hint-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 24px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .hint-overlay.active {
       opacity: 1;
     }
-    /* Orbifold coloring */
-    #group-label .orb-blue { color: #66a7ff; }
-    #group-label .orb-red  { color: #ff4d4d; }
-    
-    @media (max-height: 600px) {
-      #group-label {
-        font-size: 42px;
+
+    .hint-banner {
+      align-self: flex-start;
+      background: rgba(64, 82, 214, 0.82);
+      border: 1px solid rgba(168, 184, 255, 0.6);
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 14px;
+      max-width: clamp(240px, 40%, 360px);
+      box-shadow: 0 12px 24px rgba(12, 14, 64, 0.35);
+    }
+
+    .hint-banner.mirror {
+      background: rgba(46, 178, 153, 0.82);
+      border-color: rgba(176, 245, 225, 0.6);
+    }
+
+    .hint-banner.text {
+      background: rgba(226, 175, 39, 0.85);
+      border-color: rgba(255, 224, 147, 0.6);
+      color: #1a1508;
+      font-weight: 600;
+    }
+
+    .target-pulse {
+      align-self: center;
+      margin-top: auto;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: #ff9c9c;
+      text-transform: uppercase;
+    }
+
+    #ui-panel {
+      flex: 0 0 45%;
+      padding: 18px 28px 26px;
+      background: rgba(18, 18, 28, 0.96);
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 18px;
+    }
+
+    #level-controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    #level-select {
+      background: rgba(40, 44, 76, 0.85);
+      border: 1px solid rgba(122, 132, 214, 0.6);
+      color: #e2e5ff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      min-width: 180px;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, #5b7bff, #627bff);
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .primary-btn:disabled {
+      background: rgba(88, 96, 138, 0.55);
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .primary-btn:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(78, 104, 255, 0.35);
+    }
+
+    #hud {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px;
+    }
+
+    .hud-field {
+      background: rgba(33, 36, 64, 0.78);
+      border: 1px solid rgba(98, 112, 196, 0.45);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-height: 64px;
+    }
+
+    .hud-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(173, 178, 228, 0.72);
+    }
+
+    .hud-value {
+      font-size: 22px;
+      font-weight: 600;
+      color: #f4f6ff;
+    }
+
+    #hint-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .hint-button {
+      flex: 1;
+      padding: 10px 12px;
+      background: rgba(48, 54, 96, 0.75);
+      border: 1px solid rgba(122, 128, 206, 0.5);
+      border-radius: 10px;
+      color: #dbe1ff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.18s ease, transform 0.18s ease;
+    }
+
+    .hint-button:disabled {
+      cursor: default;
+      background: rgba(48, 54, 96, 0.35);
+      border-color: rgba(122, 128, 206, 0.25);
+      color: rgba(205, 212, 255, 0.4);
+    }
+
+    .hint-button.active {
+      background: rgba(92, 112, 234, 0.95);
+      border-color: rgba(175, 186, 255, 0.85);
+      box-shadow: 0 12px 28px rgba(92, 112, 234, 0.35);
+    }
+
+    #orbifold-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .orb-button {
+      position: relative;
+      border: 1px solid rgba(105, 120, 210, 0.4);
+      border-radius: 14px;
+      padding: 14px 10px;
+      background: rgba(42, 45, 78, 0.88);
+      font-size: 18px;
+      font-weight: 700;
+      color: #f5f6ff;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border 0.12s ease;
+      --hold-progress: 0;
+      --hold-active: 0;
+    }
+
+    .orb-button:hover:not(:disabled),
+    .orb-button:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(62, 86, 214, 0.35);
+      border-color: rgba(136, 180, 255, 0.7);
+      outline: none;
+    }
+
+    .orb-button:disabled {
+      cursor: default;
+      background: rgba(30, 32, 52, 0.6);
+      border-color: rgba(72, 80, 128, 0.3);
+      color: rgba(176, 182, 224, 0.38);
+      box-shadow: none;
+    }
+
+    .orb-button .hold-ring {
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: conic-gradient(from -90deg, rgba(245, 198, 92, 0.85) calc(var(--hold-progress) * 100%), transparent 0%);
+      opacity: calc(var(--hold-active));
+      transition: opacity 0.12s ease;
+      mix-blend-mode: screen;
+    }
+
+    .orb-button .label {
+      position: relative;
+      z-index: 2;
+    }
+
+    .orb-button.correct {
+      background: rgba(60, 156, 102, 0.9);
+      border-color: rgba(158, 255, 198, 0.85);
+      color: #ffffff;
+    }
+
+    .orb-button.incorrect {
+      background: rgba(185, 62, 62, 0.88);
+      border-color: rgba(255, 140, 140, 0.8);
+    }
+
+    .orb-button.assisted {
+      background: rgba(120, 120, 120, 0.7);
+      border-color: rgba(220, 220, 220, 0.5);
+      color: rgba(240, 240, 240, 0.6);
+    }
+
+    .grid-spacer {
+      visibility: hidden;
+    }
+
+    #summary-banner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(6, 6, 14, 0.75);
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 10;
+    }
+
+    #summary-banner.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .summary-card {
+      background: rgba(28, 30, 58, 0.92);
+      border: 1px solid rgba(108, 124, 216, 0.6);
+      border-radius: 18px;
+      padding: 28px 32px;
+      width: min(520px, 72vw);
+      color: #edf0ff;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 30px 60px rgba(10, 10, 30, 0.65);
+    }
+
+    .summary-card h2 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: 0.06em;
+    }
+
+    .summary-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      text-align: left;
+    }
+
+    .summary-field {
+      background: rgba(40, 42, 76, 0.8);
+      border-radius: 12px;
+      padding: 12px 16px;
+    }
+
+    .summary-field label {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: rgba(200, 208, 255, 0.65);
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .summary-field span {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .summary-actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .secondary-btn {
+      background: rgba(64, 68, 118, 0.7);
+      border: 1px solid rgba(118, 128, 200, 0.5);
+      border-radius: 10px;
+      padding: 10px 20px;
+      color: #e6e8ff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .secondary-btn:hover {
+      background: rgba(82, 88, 148, 0.85);
+    }
+
+    @media (max-width: 920px) {
+      #app {
+        height: 100vh;
+        width: 100vw;
+        border-radius: 0;
+      }
+
+      #ui-panel {
+        padding: 16px 18px 22px;
+      }
+
+      header {
+        padding: 14px 18px 10px;
+      }
+
+      .hud-value {
+        font-size: 18px;
+      }
+
+      .orb-button {
+        font-size: 16px;
+        padding: 12px 10px;
       }
     }
 
-    @media (max-width: 480px) {
-      #group-label {
-        font-size: 36px;
+    @media (max-width: 640px) {
+      body {
+        align-items: stretch;
+      }
+
+      #app {
+        flex-direction: column;
+      }
+
+      header h1 {
+        font-size: 18px;
+      }
+
+      #pattern-view {
+        flex: 1 1 45%;
+      }
+
+      #ui-panel {
+        flex: 0 0 55%;
+        grid-template-rows: auto auto auto;
+        gap: 12px;
+      }
+
+      #hint-bar {
+        flex-direction: column;
+      }
+
+      .hint-button {
+        width: 100%;
       }
     }
   </style>
 </head>
 <body>
-  <div id="canvas-container">
-    <div id="group-label"></div>
-    <div id="state-button" aria-label="Help">?</div>
-    <div id="next-button" aria-label="Next pattern">➜</div>
+  <div id="app">
+    <header>
+      <h1>Pattern Recognition Drills</h1>
+      <div class="meta" id="app-version"></div>
+    </header>
+
+    <section id="pattern-view" aria-label="Pattern view canvas">
+      <div class="hint-overlay" id="hint-overlay">
+        <div class="hint-banner rotation" id="hint-rotations"></div>
+        <div class="hint-banner mirror" id="hint-mirrors"></div>
+        <div class="hint-banner text" id="hint-text"></div>
+        <div class="target-pulse" id="hint-target"></div>
+      </div>
+    </section>
+
+    <section id="ui-panel" aria-label="Game controls">
+      <div id="level-controls">
+        <label for="level-select">Level</label>
+        <select id="level-select"></select>
+        <button id="start-run" class="primary-btn">Start Run</button>
+        <button id="end-run" class="secondary-btn">End Run</button>
+      </div>
+
+      <div id="hud">
+        <div class="hud-field">
+          <span class="hud-label">Run Timer</span>
+          <span class="hud-value" id="hud-run-timer">00:00</span>
+        </div>
+        <div class="hud-field">
+          <span class="hud-label">Item Timer</span>
+          <span class="hud-value" id="hud-item-timer">00:00</span>
+        </div>
+        <div class="hud-field">
+          <span class="hud-label">Score</span>
+          <span class="hud-value" id="hud-score">0</span>
+        </div>
+        <div class="hud-field">
+          <span class="hud-label">Streak</span>
+          <span class="hud-value" id="hud-streak">0</span>
+        </div>
+        <div class="hud-field">
+          <span class="hud-label">Progress</span>
+          <span class="hud-value" id="hud-progress">0 / 0</span>
+        </div>
+        <div class="hud-field">
+          <span class="hud-label">Level Gate</span>
+          <span class="hud-value" id="hud-gate">--</span>
+        </div>
+      </div>
+
+      <div>
+        <div id="hint-bar">
+          <button class="hint-button" data-hint="1" id="hint-1">Hint 1 · Rotations</button>
+          <button class="hint-button" data-hint="2" id="hint-2" disabled>Hint 2 · Mirrors</button>
+          <button class="hint-button" data-hint="3" id="hint-3" disabled>Hint 3 · Text</button>
+          <button class="hint-button" data-hint="4" id="hint-4" disabled>Hint 4 · Target</button>
+        </div>
+
+        <div id="orbifold-grid" role="grid" aria-label="Orbifold choices"></div>
+      </div>
+    </section>
+
+    <div id="summary-banner" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="summary-card">
+        <h2 id="summary-title">Run Summary</h2>
+        <div class="summary-metrics">
+          <div class="summary-field">
+            <label>Score</label>
+            <span id="summary-score">0</span>
+          </div>
+          <div class="summary-field">
+            <label>Accuracy</label>
+            <span id="summary-accuracy">0%</span>
+          </div>
+          <div class="summary-field">
+            <label>Median Item Time</label>
+            <span id="summary-median">0.0 s</span>
+          </div>
+          <div class="summary-field">
+            <label>Longest Streak</label>
+            <span id="summary-streak">0</span>
+          </div>
+        </div>
+        <div class="summary-actions">
+          <button id="summary-close" class="primary-btn">Continue</button>
+        </div>
+      </div>
+    </div>
   </div>
-  
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
   <script src="wallpaper_groups.js"></script>
   <script src="wallpaper_math.js"></script>
   <script src="wallpaper_guides.js"></script>
   <script src="pattern.js"></script>
   <script src="genome.js"></script>
-  
-  <script>
-    const targetAspect = 4 / 6; // width / height (portrait bias) .
-    const PATTERN_REPEATS_X = 3;
-    const PATTERN_REPEATS_Y = 6;
-
-    let palettes = {
-      warm: ["#e63946", "#f1faee", "#a8dadc", "#ffbe0b", "#fb5607"],
-      cool: ["#457b9d", "#1d3557", "#a8dadc", "#118ab2", "#06d6a0"],
-      earth: ["#2a9d8f", "#e9c46a", "#f4a261", "#264653", "#dda15e"],
-      vivid: ["#ffb703", "#fb8500", "#023047", "#8ecae6", "#219ebc"],
-    };
-
-    let baseGenome = null;
-    let currentGenome = null;
-    let state = "pattern"; // 'pattern' or 'showing-group'
-
-    let containerEl;
-    let groupLabelEl;
-    let stateButtonEl;
-    let nextButtonEl;
-    let canvas;
-    let pg;
-
-    let showSymmetryGuides = false;
-    let lastDevicePixelRatio = Math.max(0.1, window.devicePixelRatio || 1);
-    let lastZoomScale = window.visualViewport ? window.visualViewport.scale : 1;
-
-    function cloneGenome(g) {
-      return JSON.parse(JSON.stringify(g));
-    }
-
-    function checkForZoomChange() {
-      const currentRatio = Math.max(0.1, window.devicePixelRatio || 1);
-      const currentZoomScale = window.visualViewport ? window.visualViewport.scale : 1;
-      
-      const ratioChanged = Math.abs(currentRatio - lastDevicePixelRatio) > 0.01;
-      const zoomChanged = Math.abs(currentZoomScale - lastZoomScale) > 0.01;
-      
-      if (ratioChanged || zoomChanged) {
-        console.log('Zoom detected! Scale:', currentZoomScale, 'DPR:', currentRatio);
-        lastDevicePixelRatio = currentRatio;
-        lastZoomScale = currentZoomScale;
-        pixelDensity(currentRatio);
-        if (!pg) {
-          pg = createGraphics(width, height);
-        }
-        if (pg.pixelDensity) pg.pixelDensity(currentRatio);
-        if (baseGenome && currentGenome) {
-          updateCurrentGenomeScale();
-          renderPattern();
-          drawScreen();
-        }
-      }
-    }
-
-    function computeViewportRect() {
-      const vv = window.visualViewport;
-      const vw = Math.max(1, Math.round((vv && vv.width) ? vv.width : (window.innerWidth || width)));
-      const vh = Math.max(1, Math.round((vv && vv.height) ? vv.height : (window.innerHeight || height)));
-      return {
-        width: vw,
-        height: vh,
-      };
-    }
-
-    function applyContainerSize() {
-      const rect = computeViewportRect();
-      if (containerEl) {
-        containerEl.style.width = `${rect.width}px`;
-        containerEl.style.height = `${rect.height}px`;
-      }
-      return rect;
-    }
-
-    function setup() {
-      containerEl = document.getElementById("canvas-container");
-      groupLabelEl = document.getElementById("group-label");
-      stateButtonEl = document.getElementById("state-button");
-      nextButtonEl = document.getElementById("next-button");
-
-      const { width: w, height: h } = applyContainerSize();
-      lastDevicePixelRatio = Math.max(0.1, window.devicePixelRatio || 1);
-      lastZoomScale = window.visualViewport ? window.visualViewport.scale : 1;
-
-      canvas = createCanvas(w, h);
-      canvas.parent(containerEl);
-      pixelDensity(lastDevicePixelRatio);
-      angleMode(RADIANS);
-      noLoop();
-
-      pg = createGraphics(w, h);
-      if (pg.pixelDensity) pg.pixelDensity(lastDevicePixelRatio);
-
-      generateNewPattern();
-      drawScreen();
-
-      // Poll for zoom changes every 250ms
-      setInterval(checkForZoomChange, 250);
-
-      if (stateButtonEl) {
-        stateButtonEl.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (state === "pattern") {
-            state = "guides";
-          } else if (state === "guides") {
-            state = "showing-group";
-          } else {
-            state = "pattern";
-          }
-          renderPattern();
-          drawScreen();
-        });
-      }
-
-      if (nextButtonEl) {
-        nextButtonEl.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          generateNewPattern();
-        });
-      }
-    }
-
-    function draw() {
-      // Rendering is event-driven via drawScreen()
-    }
-
-    function updateCurrentGenomeScale() {
-      if (!baseGenome) return;
-      const rect = computeViewportRect();
-      
-      // Try multiple methods for zoom detection
-      let zoomFactor = 1;
-      
-      // Method 1: visualViewport.scale (best if available)
-      if (window.visualViewport && typeof window.visualViewport.scale === 'number' && window.visualViewport.scale !== 1) {
-        const currentZoomScale = window.visualViewport.scale;
-        const initialZoomScale = baseGenome.initialZoomScale || 1;
-        zoomFactor = currentZoomScale / initialZoomScale;
-      }
-      // Method 2: Use viewport size changes as proxy for zoom
-      else if (baseGenome.initialViewportWidth) {
-        const widthRatio = baseGenome.initialViewportWidth / rect.width;
-        const heightRatio = baseGenome.initialViewportHeight / rect.height;
-        // Use the average of width and height ratios for zoom detection
-        zoomFactor = (widthRatio + heightRatio) / 2;
-      }
-      
-      if (!baseGenome.seedMotifScale) baseGenome.seedMotifScale = baseGenome.motifScale;
-      const baseCell = estimateCellSize(baseGenome);
-      const safeCellW = Math.max(1, baseCell.w);
-      const safeCellH = Math.max(1, baseCell.h);
-      const horizontalSpan = safeCellW * PATTERN_REPEATS_X;
-      const minimumVerticalSpan = 2 * horizontalSpan;
-      const configuredVerticalSpan = safeCellH * PATTERN_REPEATS_Y;
-      const verticalSpanForViewport = horizontalSpan * (rect.height / Math.max(1, rect.width));
-      const verticalSpan = Math.max(
-        minimumVerticalSpan,
-        configuredVerticalSpan,
-        verticalSpanForViewport
-      );
-      let scaleFactor = Math.min(
-        rect.width / horizontalSpan,
-        rect.height / verticalSpan
-      );
-      if (!Number.isFinite(scaleFactor) || scaleFactor <= 0) {
-        scaleFactor = 1;
-      }
-      const scaledGenome = cloneGenome(baseGenome);
-      const baseScale = baseGenome.seedMotifScale || baseGenome.motifScale || 1;
-      // Apply zoom factor just like in the test (latticeScale * zoomScale)
-      scaledGenome.motifScale = baseScale * scaleFactor * zoomFactor;
-      scaledGenome.seedMotifScale = baseScale;
-      currentGenome = scaledGenome;
-      
-      // Debug logging
-      console.log('Zoom update:', {
-        hasVisualViewport: !!window.visualViewport,
-        visualViewportScale: window.visualViewport?.scale,
-        currentWidth: rect.width,
-        currentHeight: rect.height,
-        initialWidth: baseGenome.initialViewportWidth,
-        initialHeight: baseGenome.initialViewportHeight,
-        zoomFactor,
-        baseScale,
-        scaleFactor,
-        finalMotifScale: scaledGenome.motifScale,
-        devicePixelRatio: window.devicePixelRatio
-      });
-    }
-
-    function renderPattern() {
-      if (!currentGenome) return;
-      const rect = computeViewportRect();
-      const currentRatio = Math.max(0.1, lastDevicePixelRatio);
-      if (!pg) {
-        pg = createGraphics(rect.width, rect.height);
-        if (pg.pixelDensity) pg.pixelDensity(currentRatio);
-      }
-      if (pg.width !== rect.width || pg.height !== rect.height) {
-        pg.resizeCanvas(rect.width, rect.height);
-        if (pg.pixelDensity) pg.pixelDensity(currentRatio);
-      }
-      pg.background(20);
-      pg.push();
-      pg.translate(pg.width / 2, pg.height / 2);
-      const prevShowGuides = showSymmetryGuides;
-      showSymmetryGuides = (state === "guides" || state === "showing-group");
-      drawWallpaperOn(pg, currentGenome);
-      showSymmetryGuides = prevShowGuides;
-      pg.pop();
-    }
-
-    function drawScreen() {
-      background(20);
-      if (currentGenome && pg) {
-        image(pg, 0, 0, width, height);
-      }
-      // Always show the state and next buttons
-      if (stateButtonEl) {
-        stateButtonEl.classList.remove('state-back');
-        if (state === "pattern") {
-          stateButtonEl.textContent = "?";
-        } else if (state === "guides") {
-          stateButtonEl.textContent = "??";
-        } else {
-          stateButtonEl.textContent = "➜";
-          stateButtonEl.classList.add('state-back');
-        }
-        stateButtonEl.classList.add('visible');
-      }
-      if (nextButtonEl) {
-        nextButtonEl.classList.add('visible');
-      }
-      // Group label visibility only in showing-group
-      if (groupLabelEl) {
-        if (state === "showing-group" && currentGenome) {
-          groupLabelEl.innerHTML = colorOrbifold(currentGenome.group);
-          groupLabelEl.classList.add("visible");
-        } else {
-          groupLabelEl.classList.remove("visible");
-        }
-      }
-    }
-
-    function colorOrbifold(sig) {
-      const s = String(sig || "");
-      let out = "";
-      let afterStar = false;
-      for (const ch of s) {
-        const isDigit = ch >= '0' && ch <= '9';
-        const isRed = (ch === '*') || (ch === 'x') || (afterStar && isDigit);
-        out += `<span class="${isRed ? 'orb-red' : 'orb-blue'}">${ch}</span>`;
-        if (ch === '*') afterStar = true;
-      }
-      return out;
-    }
-
-    function generateNewPattern() {
-      baseGenome = randomGenome();
-      baseGenome.seedMotifScale = baseGenome.motifScale;
-      
-      // Store initial zoom scale from visualViewport
-      baseGenome.initialZoomScale = window.visualViewport ? window.visualViewport.scale : 1;
-      
-      // Store initial viewport dimensions for fallback zoom detection
-      const initialRect = computeViewportRect();
-      baseGenome.initialViewportWidth = initialRect.width;
-      baseGenome.initialViewportHeight = initialRect.height;
-      
-      state = "pattern";
-      updateCurrentGenomeScale();
-      renderPattern();
-      drawScreen();
-    }
-
-    // Disable general click/touch interactions; only buttons trigger actions
-
-    function windowResized() {
-      const { width: w, height: h } = applyContainerSize();
-      const currentRatio = Math.max(0.1, window.devicePixelRatio || 1);
-      lastDevicePixelRatio = currentRatio;
-      lastZoomScale = window.visualViewport ? window.visualViewport.scale : 1;
-      resizeCanvas(w, h);
-      pixelDensity(currentRatio);
-      if (pg) {
-        pg.resizeCanvas(w, h);
-        if (pg.pixelDensity) pg.pixelDensity(currentRatio);
-      } else {
-        pg = createGraphics(w, h);
-        if (pg.pixelDensity) pg.pixelDensity(currentRatio);
-      }
-      updateCurrentGenomeScale();
-      renderPattern();
-      drawScreen();
-    }
-  </script>
+  <script src="game_config.js"></script>
+  <script src="game_models.js"></script>
+  <script src="game_persistence.js"></script>
+  <script src="game_service.js"></script>
+  <script src="game_app.js"></script>
+  <script src="game_tests.js"></script>
 </body>
 </html>
