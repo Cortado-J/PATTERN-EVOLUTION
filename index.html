@@ -173,15 +173,41 @@
     let pg;
 
     let showSymmetryGuides = false;
-    const baseDevicePixelRatio = Math.max(0.1, window.devicePixelRatio || 1);
+    let lastDevicePixelRatio = Math.max(0.1, window.devicePixelRatio || 1);
+    let lastZoomScale = window.visualViewport ? window.visualViewport.scale : 1;
 
     function cloneGenome(g) {
       return JSON.parse(JSON.stringify(g));
     }
 
+    function checkForZoomChange() {
+      const currentRatio = Math.max(0.1, window.devicePixelRatio || 1);
+      const currentZoomScale = window.visualViewport ? window.visualViewport.scale : 1;
+      
+      const ratioChanged = Math.abs(currentRatio - lastDevicePixelRatio) > 0.01;
+      const zoomChanged = Math.abs(currentZoomScale - lastZoomScale) > 0.01;
+      
+      if (ratioChanged || zoomChanged) {
+        console.log('Zoom detected! Scale:', currentZoomScale, 'DPR:', currentRatio);
+        lastDevicePixelRatio = currentRatio;
+        lastZoomScale = currentZoomScale;
+        pixelDensity(currentRatio);
+        if (!pg) {
+          pg = createGraphics(width, height);
+        }
+        if (pg.pixelDensity) pg.pixelDensity(currentRatio);
+        if (baseGenome && currentGenome) {
+          updateCurrentGenomeScale();
+          renderPattern();
+          drawScreen();
+        }
+      }
+    }
+
     function computeViewportRect() {
-      const vw = Math.max(1, Math.round(window.innerWidth || width));
-      const vh = Math.max(1, Math.round(window.innerHeight || height));
+      const vv = window.visualViewport;
+      const vw = Math.max(1, Math.round((vv && vv.width) ? vv.width : (window.innerWidth || width)));
+      const vh = Math.max(1, Math.round((vv && vv.height) ? vv.height : (window.innerHeight || height)));
       return {
         width: vw,
         height: vh,
@@ -204,17 +230,23 @@
       nextButtonEl = document.getElementById("next-button");
 
       const { width: w, height: h } = applyContainerSize();
+      lastDevicePixelRatio = Math.max(0.1, window.devicePixelRatio || 1);
+      lastZoomScale = window.visualViewport ? window.visualViewport.scale : 1;
+
       canvas = createCanvas(w, h);
       canvas.parent(containerEl);
-      pixelDensity(baseDevicePixelRatio);
+      pixelDensity(lastDevicePixelRatio);
       angleMode(RADIANS);
       noLoop();
 
       pg = createGraphics(w, h);
-      if (pg.pixelDensity) pg.pixelDensity(baseDevicePixelRatio);
+      if (pg.pixelDensity) pg.pixelDensity(lastDevicePixelRatio);
 
       generateNewPattern();
       drawScreen();
+
+      // Poll for zoom changes every 250ms
+      setInterval(checkForZoomChange, 250);
 
       if (stateButtonEl) {
         stateButtonEl.addEventListener('click', (e) => {
@@ -248,10 +280,24 @@
     function updateCurrentGenomeScale() {
       if (!baseGenome) return;
       const rect = computeViewportRect();
-      const currentPixelRatio = Math.max(0.1, window.devicePixelRatio || 1);
-      const zoomFactor = currentPixelRatio / baseDevicePixelRatio;
-      const effectiveWidth = rect.width * zoomFactor;
-      const effectiveHeight = rect.height * zoomFactor;
+      
+      // Try multiple methods for zoom detection
+      let zoomFactor = 1;
+      
+      // Method 1: visualViewport.scale (best if available)
+      if (window.visualViewport && typeof window.visualViewport.scale === 'number' && window.visualViewport.scale !== 1) {
+        const currentZoomScale = window.visualViewport.scale;
+        const initialZoomScale = baseGenome.initialZoomScale || 1;
+        zoomFactor = currentZoomScale / initialZoomScale;
+      }
+      // Method 2: Use viewport size changes as proxy for zoom
+      else if (baseGenome.initialViewportWidth) {
+        const widthRatio = baseGenome.initialViewportWidth / rect.width;
+        const heightRatio = baseGenome.initialViewportHeight / rect.height;
+        // Use the average of width and height ratios for zoom detection
+        zoomFactor = (widthRatio + heightRatio) / 2;
+      }
+      
       if (!baseGenome.seedMotifScale) baseGenome.seedMotifScale = baseGenome.motifScale;
       const baseCell = estimateCellSize(baseGenome);
       const safeCellW = Math.max(1, baseCell.w);
@@ -259,36 +305,54 @@
       const horizontalSpan = safeCellW * PATTERN_REPEATS_X;
       const minimumVerticalSpan = 2 * horizontalSpan;
       const configuredVerticalSpan = safeCellH * PATTERN_REPEATS_Y;
-      const verticalSpanForViewport = horizontalSpan * (effectiveHeight / Math.max(1, effectiveWidth));
+      const verticalSpanForViewport = horizontalSpan * (rect.height / Math.max(1, rect.width));
       const verticalSpan = Math.max(
         minimumVerticalSpan,
         configuredVerticalSpan,
         verticalSpanForViewport
       );
       let scaleFactor = Math.min(
-        effectiveWidth / horizontalSpan,
-        effectiveHeight / verticalSpan
+        rect.width / horizontalSpan,
+        rect.height / verticalSpan
       );
       if (!Number.isFinite(scaleFactor) || scaleFactor <= 0) {
         scaleFactor = 1;
       }
       const scaledGenome = cloneGenome(baseGenome);
       const baseScale = baseGenome.seedMotifScale || baseGenome.motifScale || 1;
-      scaledGenome.motifScale = baseScale * scaleFactor;
+      // Apply zoom factor just like in the test (latticeScale * zoomScale)
+      scaledGenome.motifScale = baseScale * scaleFactor * zoomFactor;
       scaledGenome.seedMotifScale = baseScale;
       currentGenome = scaledGenome;
+      
+      // Debug logging
+      console.log('Zoom update:', {
+        hasVisualViewport: !!window.visualViewport,
+        visualViewportScale: window.visualViewport?.scale,
+        currentWidth: rect.width,
+        currentHeight: rect.height,
+        initialWidth: baseGenome.initialViewportWidth,
+        initialHeight: baseGenome.initialViewportHeight,
+        zoomFactor,
+        baseScale,
+        scaleFactor,
+        finalMotifScale: scaledGenome.motifScale,
+        devicePixelRatio: window.devicePixelRatio
+      });
     }
 
     function renderPattern() {
       if (!currentGenome) return;
       const rect = computeViewportRect();
+      const currentRatio = Math.max(0.1, lastDevicePixelRatio);
       if (!pg) {
         pg = createGraphics(rect.width, rect.height);
+        if (pg.pixelDensity) pg.pixelDensity(currentRatio);
       }
       if (pg.width !== rect.width || pg.height !== rect.height) {
         pg.resizeCanvas(rect.width, rect.height);
+        if (pg.pixelDensity) pg.pixelDensity(currentRatio);
       }
-      if (pg.pixelDensity) pg.pixelDensity(baseDevicePixelRatio);
       pg.background(20);
       pg.push();
       pg.translate(pg.width / 2, pg.height / 2);
@@ -347,6 +411,15 @@
     function generateNewPattern() {
       baseGenome = randomGenome();
       baseGenome.seedMotifScale = baseGenome.motifScale;
+      
+      // Store initial zoom scale from visualViewport
+      baseGenome.initialZoomScale = window.visualViewport ? window.visualViewport.scale : 1;
+      
+      // Store initial viewport dimensions for fallback zoom detection
+      const initialRect = computeViewportRect();
+      baseGenome.initialViewportWidth = initialRect.width;
+      baseGenome.initialViewportHeight = initialRect.height;
+      
       state = "pattern";
       updateCurrentGenomeScale();
       renderPattern();
@@ -357,11 +430,17 @@
 
     function windowResized() {
       const { width: w, height: h } = applyContainerSize();
+      const currentRatio = Math.max(0.1, window.devicePixelRatio || 1);
+      lastDevicePixelRatio = currentRatio;
+      lastZoomScale = window.visualViewport ? window.visualViewport.scale : 1;
       resizeCanvas(w, h);
+      pixelDensity(currentRatio);
       if (pg) {
         pg.resizeCanvas(w, h);
+        if (pg.pixelDensity) pg.pixelDensity(currentRatio);
       } else {
         pg = createGraphics(w, h);
+        if (pg.pixelDensity) pg.pixelDensity(currentRatio);
       }
       updateCurrentGenomeScale();
       renderPattern();
