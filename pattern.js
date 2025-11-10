@@ -45,6 +45,10 @@ function drawWallpaperOn(pg, g) {
 // === motif & shapes ===
 function createMotif(pg, g, s, palette, spec) {
   let motif = [];
+  const globalScope = typeof window !== "undefined" ? window : (typeof globalThis !== "undefined" ? globalThis : this);
+  if (typeof globalScope.palettes === "undefined" && typeof palettes !== "undefined") {
+    globalScope.palettes = palettes;
+  }
   let paletteSet = palettes[g.palette];
 
   // Stateful stream

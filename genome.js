@@ -18,6 +18,69 @@
  * a light mutation pass for variation.
  * Supporting helpers (`genomeHash`, etc.) keep previews deterministic.
  */
+const GLOBAL_SCOPE = typeof window !== "undefined" ? window : (typeof globalThis !== "undefined" ? globalThis : this);
+
+const DEFAULT_GAME_PALETTES = Object.freeze({
+  warm: ["#e63946", "#f1faee", "#a8dadc", "#ffbe0b", "#fb5607"],
+  cool: ["#457b9d", "#1d3557", "#a8dadc", "#118ab2", "#06d6a0"],
+  earth: ["#2a9d8f", "#e9c46a", "#f4a261", "#264653", "#dda15e"],
+  vivid: ["#ffb703", "#fb8500", "#023047", "#8ecae6", "#219ebc"],
+});
+
+if (!GLOBAL_SCOPE.palettes) {
+  GLOBAL_SCOPE.palettes = DEFAULT_GAME_PALETTES;
+}
+
+const palettes = GLOBAL_SCOPE.palettes;
+
+if (typeof GLOBAL_SCOPE.random !== "function") {
+  GLOBAL_SCOPE.random = function randomFallback(minOrArray, max) {
+    if (Array.isArray(minOrArray)) {
+      if (minOrArray.length === 0) return undefined;
+      const idx = Math.floor(Math.random() * minOrArray.length);
+      return minOrArray[idx];
+    }
+    if (typeof max === "undefined") {
+      if (typeof minOrArray === "undefined") {
+        return Math.random();
+      }
+      return Math.random() * minOrArray;
+    }
+    return Math.random() * (max - minOrArray) + minOrArray;
+  };
+}
+
+if (typeof GLOBAL_SCOPE.constrain !== "function") {
+  GLOBAL_SCOPE.constrain = function constrainFallback(val, min, max) {
+    return Math.min(Math.max(val, min), max);
+  };
+}
+
+if (typeof GLOBAL_SCOPE.lerp !== "function") {
+  GLOBAL_SCOPE.lerp = function lerpFallback(start, stop, amt) {
+    return start + (stop - start) * amt;
+  };
+}
+
+if (typeof GLOBAL_SCOPE.radians !== "function") {
+  GLOBAL_SCOPE.radians = function radiansFallback(deg) {
+    return (deg * Math.PI) / 180;
+  };
+}
+
+if (typeof GLOBAL_SCOPE.degrees !== "function") {
+  GLOBAL_SCOPE.degrees = function degreesFallback(rad) {
+    return (rad * 180) / Math.PI;
+  };
+}
+
+if (typeof GLOBAL_SCOPE.PI === "undefined") {
+  GLOBAL_SCOPE.PI = Math.PI;
+}
+if (typeof GLOBAL_SCOPE.TWO_PI === "undefined") {
+  GLOBAL_SCOPE.TWO_PI = Math.PI * 2;
+}
+
 const CURVED_SHAPES = [
   "petal",
   "leaf",
@@ -284,6 +347,10 @@ function randomGenome() {
     shapes,
     colors,
   };
+}
+
+if (!GLOBAL_SCOPE.randomGenome) {
+  GLOBAL_SCOPE.randomGenome = randomGenome;
 }
 
 // === evolution functions ===

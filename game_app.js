@@ -8,6 +8,7 @@
 
   const GameConfig = global.GameConfig;
   const GameService = global.GameService;
+  const GameAppGlobal = (global.GameApp = global.GameApp || {});
 
   if (!GameConfig || !GameService) {
     throw new Error("GameConfig and GameService must be loaded before game_app.js");
@@ -31,6 +32,7 @@
     orbButtons: new Map(),
     disabledOrbs: new Set(),
     availableHints: { 1: true, 2: true, 3: true, 4: true },
+    nextHintOrder: null,
     timers: {
       lastFrame: null,
       itemStart: null,
@@ -155,15 +157,11 @@
 
   function cacheDom() {
     elements.appVersion = document.getElementById("app-version");
-    elements.levelSelect = document.getElementById("level-select");
-    elements.startRun = document.getElementById("start-run");
-    elements.endRun = document.getElementById("end-run");
-    elements.hintButtons = [
-      document.getElementById("hint-1"),
-      document.getElementById("hint-2"),
-      document.getElementById("hint-3"),
-      document.getElementById("hint-4"),
-    ];
+    elements.setupScreen = document.getElementById("setup-screen");
+    elements.setupLevelSelect = document.getElementById("setup-level-select");
+    elements.setupStart = document.getElementById("setup-start");
+    elements.hintButton = document.getElementById("hint-button");
+    elements.hintNumber = elements.hintButton ? elements.hintButton.querySelector(".hint-number") : null;
     elements.hintOverlay = document.getElementById("hint-overlay");
     elements.hintRotation = document.getElementById("hint-rotations");
     elements.hintMirror = document.getElementById("hint-mirrors");
@@ -171,10 +169,7 @@
     elements.hintTarget = document.getElementById("hint-target");
     elements.hudRunTimer = document.getElementById("hud-run-timer");
     elements.hudItemTimer = document.getElementById("hud-item-timer");
-    elements.hudScore = document.getElementById("hud-score");
     elements.hudStreak = document.getElementById("hud-streak");
-    elements.hudProgress = document.getElementById("hud-progress");
-    elements.hudGate = document.getElementById("hud-gate");
     elements.summaryBanner = document.getElementById("summary-banner");
     elements.summaryTitle = document.getElementById("summary-title");
     elements.summaryScore = document.getElementById("summary-score");
@@ -218,9 +213,10 @@
   }
 
   function bindControls() {
-    elements.startRun?.addEventListener("click", () => {
+    elements.setupStart?.addEventListener("click", () => {
       if (state.runActive) return;
-      const levelId = elements.levelSelect.value;
+      const levelId = elements.setupLevelSelect?.value;
+      if (!levelId) return;
       try {
         service.startRun(levelId);
       } catch (err) {
@@ -228,34 +224,26 @@
       }
     });
 
-    elements.endRun?.addEventListener("click", () => {
-      if (!state.runActive) return;
-      service.endRun({ reason: "manual" });
-    });
-
     elements.summaryClose?.addEventListener("click", () => {
       hideSummary();
+      showSetupScreen();
     });
 
-    elements.levelSelect?.addEventListener("change", () => {
-      const level = GameConfig.LEVELS.find(l => l.id === elements.levelSelect.value);
+    elements.setupLevelSelect?.addEventListener("change", () => {
+      const level = GameConfig.LEVELS.find(l => l.id === elements.setupLevelSelect.value);
       state.level = level || null;
-      updateGateHud(level);
     });
 
-    elements.hintButtons.forEach((btn, index) => {
-      const order = index + 1;
-      btn?.addEventListener("click", () => {
-        if (!state.runActive) return;
-        if (!isHintAvailable(order)) return;
-        service.onHintRequest(order);
-      });
+    elements.hintButton?.addEventListener("click", () => {
+      if (!state.runActive) return;
+      if (!Number.isInteger(state.nextHintOrder)) return;
+      service.onHintRequest(state.nextHintOrder);
     });
   }
 
   function refreshLevelSelect() {
     const unlocked = new Set(service.progress?.unlockedLevels || ["L1-rotate"]);
-    const select = elements.levelSelect;
+    const select = elements.setupLevelSelect;
     if (!select) return;
     select.innerHTML = "";
     for (const level of GameConfig.LEVELS) {
@@ -272,32 +260,18 @@
     if (firstEnabled) {
       select.value = firstEnabled.value;
       state.level = GameConfig.LEVELS.find(l => l.id === firstEnabled.value) || null;
-      updateGateHud(state.level);
+      showSetupScreen();
+    } else {
+      state.level = null;
     }
-  }
-
-  function updateGateHud(level) {
-    if (!elements.hudGate) return;
-    if (!level) {
-      elements.hudGate.textContent = "--";
-      return;
-    }
-    const gate = level.gate;
-    if (!gate) {
-      elements.hudGate.textContent = "--";
-      return;
-    }
-    const accuracy = Math.round((gate.minAccuracy || 0) * 100);
-    const median = gate.maxMedianItemSeconds || "–";
-    elements.hudGate.textContent = `≥${accuracy}% | < ${median}s`;
   }
 
   function updateHudIdle() {
     elements.hudRunTimer.textContent = "00:00";
     elements.hudItemTimer.textContent = "00:00";
-    elements.hudScore.textContent = "0";
     elements.hudStreak.textContent = "0";
-    elements.hudProgress.textContent = "0 / 0";
+    state.nextHintOrder = null;
+    updateHintButton();
   }
 
   function attachServiceEvents() {
@@ -309,9 +283,7 @@
       state.showGuides = false;
       state.currentItem = null;
       state.disabledOrbs.clear();
-      elements.startRun.disabled = true;
-      elements.endRun.disabled = false;
-      updateGateHud(level);
+      hideSetupScreen();
       resetHintUi();
       hideSummary();
       updateHud(runState);
@@ -353,8 +325,8 @@
       state.runActive = false;
       state.runState = null;
       state.currentItem = null;
-      elements.startRun.disabled = false;
-      elements.endRun.disabled = true;
+      state.nextHintOrder = null;
+      updateHintButton();
       updateHudIdle();
       showSummary(summary, gatePassed);
       refreshLevelSelect();
@@ -363,7 +335,6 @@
 
   function activateItem(item, index, total) {
     state.timers.itemStart = performance.now();
-    elements.hudProgress.textContent = `${index + 1} / ${total}`;
     state.orbButtons.forEach(btn => {
       btn.disabled = false;
       btn.classList.remove("incorrect", "correct", "assisted");
@@ -399,13 +370,6 @@
 
   function setHintState(order) {
     if (!state.currentItem) return;
-    for (let i = 0; i < order; i++) {
-      const btn = elements.hintButtons[i];
-      if (btn) {
-        btn.disabled = false;
-        btn.classList.add("active");
-      }
-    }
     const overlays = state.currentItem.overlays || {};
     switch (order) {
       case 1:
@@ -429,7 +393,8 @@
       default:
         break;
     }
-    enableNextHint(order + 1);
+    state.nextHintOrder = computeNextHintOrder(order);
+    updateHintButton();
   }
 
   function revealTargetOrb(truth) {
@@ -441,28 +406,16 @@
     elements.hintTarget.style.display = "block";
   }
 
-  function enableNextHint(order) {
-    elements.hintButtons.forEach((btn, idx) => {
-      const hintOrder = idx + 1;
-      if (hintOrder === order) {
-        btn.disabled = !isHintAvailable(hintOrder);
-      } else if (hintOrder > order) {
-        btn.disabled = true;
-      }
-    });
-  }
-
   function resetHintUi() {
-    elements.hintButtons.forEach((btn, idx) => {
-      btn.disabled = idx !== 0;
-      btn.classList.remove("active");
-    });
     elements.hintOverlay.classList.remove("active");
     elements.hintRotation.textContent = "";
     elements.hintMirror.textContent = "";
     elements.hintText.textContent = "";
     elements.hintTarget.textContent = "";
     elements.hintTarget.style.display = "none";
+    state.availableHints = { 1: false, 2: false, 3: false, 4: false };
+    state.nextHintOrder = null;
+    updateHintButton();
   }
 
   function resetHintUiForItem(item) {
@@ -473,7 +426,8 @@
       3: Boolean(item.overlays && item.overlays.textCue),
       4: true,
     };
-    elements.hintButtons[0].disabled = !state.availableHints[1];
+    state.nextHintOrder = computeNextHintOrder(0);
+    updateHintButton();
   }
 
   function isHintAvailable(order) {
@@ -493,12 +447,13 @@
     if (result.assisted && truthBtn) {
       truthBtn.classList.add("assisted");
     }
+    state.nextHintOrder = null;
+    updateHintButton();
   }
 
   function updateHud(runState) {
     if (!runState) return;
     updateRunTimer(runState);
-    elements.hudScore.textContent = `${runState.score | 0}`;
     elements.hudStreak.textContent = `${runState.currentStreak | 0}`;
   }
 
@@ -645,6 +600,40 @@
     }
   }
 
+  function computeNextHintOrder(afterOrder) {
+    for (let i = 1; i <= 4; i++) {
+      if (isHintAvailable(i) && i > afterOrder) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  function updateHintButton() {
+    const btn = elements.hintButton;
+    if (!btn) return;
+    const numberEl = elements.hintNumber;
+    const next = state.runActive ? state.nextHintOrder : null;
+    if (numberEl) {
+      numberEl.textContent = next ? `${next}` : "–";
+    }
+    btn.disabled = !Number.isInteger(next);
+  }
+
+  function showSetupScreen() {
+    if (elements.setupScreen) {
+      elements.setupScreen.classList.remove("hidden");
+      elements.setupScreen.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  function hideSetupScreen() {
+    if (elements.setupScreen) {
+      elements.setupScreen.classList.add("hidden");
+      elements.setupScreen.setAttribute("aria-hidden", "true");
+    }
+  }
+
   function setupP5Sketch(p5) {
     const container = elements.patternView;
     const rect = container.getBoundingClientRect();
@@ -680,32 +669,125 @@
     renderPattern(p5);
   }
 
-  function queueP5Redraw(p5) {
-    renderPattern(p5);
+function onWindowResized(p5) {
+  const container = elements.patternView;
+  const rect = container.getBoundingClientRect();
+  p5.resizeCanvas(rect.width, rect.height);
+  if (state.baseGenome) {
+    state.currentGenome = scaleGenomeForView(state.baseGenome);
+  }
+  renderPattern(p5);
+}
+
+function queueP5Redraw(p5) {
+  renderPattern(p5);
+}
+
+function ensureP5Globals(p5Instance) {
+    if (!p5Instance || GameAppGlobal._p5GlobalsReady) return;
+
+    const bind = (fn) => (...args) => fn.apply(p5Instance, args);
+    const maybeAssign = (name, value) => {
+      if (typeof global[name] === "undefined") {
+        global[name] = value;
+      }
+    };
+
+    const p5Aliases = {
+      random: bind(p5Instance.random),
+      randomSeed: bind(p5Instance.randomSeed),
+      noise: bind(p5Instance.noise),
+      noiseSeed: bind(p5Instance.noiseSeed),
+      constrain: bind(p5Instance.constrain),
+      map: bind(p5Instance.map),
+      lerp: bind(p5Instance.lerp),
+      radians: bind(p5Instance.radians),
+      degrees: bind(p5Instance.degrees),
+    };
+
+    Object.entries(p5Aliases).forEach(([name, fn]) => {
+      if (typeof fn === "function" && typeof global[name] !== "function") {
+        global[name] = fn;
+      }
+    });
+
+    const mathAliases = {
+      floor: Math.floor,
+      round: Math.round,
+      ceil: Math.ceil,
+      abs: Math.abs,
+      min: Math.min,
+      max: Math.max,
+      sin: Math.sin,
+      cos: Math.cos,
+      tan: Math.tan,
+      atan2: Math.atan2,
+      sqrt: Math.sqrt,
+      pow: Math.pow,
+      log: Math.log,
+      exp: Math.exp,
+    };
+
+    Object.entries(mathAliases).forEach(([name, fn]) => {
+      if (typeof global[name] !== "function") {
+        global[name] = fn;
+      }
+    });
+
+    maybeAssign("PI", Math.PI);
+    maybeAssign("TWO_PI", Math.PI * 2);
+    maybeAssign("HALF_PI", Math.PI / 2);
+    maybeAssign("QUARTER_PI", Math.PI / 4);
+
+    GameAppGlobal._p5GlobalsReady = true;
   }
 
   function installP5() {
-    new p5((sketch) => {
-      sketch.setup = () => setupP5Sketch(sketch);
-      sketch.draw = () => renderPattern(sketch);
-      sketch.windowResized = () => onWindowResized(sketch);
-      global.redrawPattern = () => queueP5Redraw(sketch);
+    if (GameAppGlobal._p5Installed) return;
+    const instance = new p5(p5 => {
+      p5.setup = () => setupP5Sketch(p5);
+      p5.draw = () => renderPattern(p5);
+      p5.windowResized = () => onWindowResized(p5);
     });
+    GameAppGlobal._p5Instance = instance;
+    ensureP5Globals(instance);
+    GameAppGlobal._p5Installed = true;
   }
 
-  function queuePatternRender() {
-    if (typeof global.redrawPattern === "function") {
-      global.redrawPattern();
-    }
+function queuePatternRender() {
+  if (typeof global.redrawPattern === "function") {
+    global.redrawPattern();
   }
+}
+
+  function init() {
+    installP5();
+
+    if (!GameAppGlobal._initialized) {
+      cacheDom();
+      renderOrbifoldGrid();
+      bindControls();
+      attachServiceEvents();
+      startFrameLoop();
+      exposeVersion();
+      GameAppGlobal._initialized = true;
+    } else if (!elements.setupLevelSelect) {
+      cacheDom();
+    }
+
+    refreshLevelSelect();
+    updateHudIdle();
+    showSetupScreen();
+    global.GameTests?.runGameTests?.();
+  }
+
+  GameAppGlobal.init = init;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
-      installP5();
-      init();
+      GameAppGlobal.init();
     });
   } else {
-    installP5();
-    init();
+    GameAppGlobal.init();
   }
 })(typeof window !== "undefined" ? window : this);

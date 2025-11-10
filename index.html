@@ -62,9 +62,17 @@
       color: rgba(214, 218, 255, 0.72);
     }
 
+    #main-content {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
     #pattern-view {
       position: relative;
-      flex: 1 1 55%;
+      flex: 1 1 50%;
+      min-height: 45vh;
       background: repeating-conic-gradient(from 45deg, rgba(24, 24, 38, 0.65) 0deg 45deg, rgba(12, 12, 20, 0.9) 45deg 90deg);
       display: flex;
       align-items: center;
@@ -126,71 +134,39 @@
       color: #ff9c9c;
       text-transform: uppercase;
     }
-
-    #ui-panel {
-      flex: 0 0 45%;
-      padding: 18px 28px 26px;
-      background: rgba(18, 18, 28, 0.96);
-      display: grid;
-      grid-template-rows: auto auto 1fr;
-      gap: 18px;
-    }
-
-    #level-controls {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    #level-select {
-      background: rgba(40, 44, 76, 0.85);
-      border: 1px solid rgba(122, 132, 214, 0.6);
-      color: #e2e5ff;
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 14px;
-      min-width: 180px;
-    }
-
-    .primary-btn {
-      background: linear-gradient(135deg, #5b7bff, #627bff);
-      border: none;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .primary-btn:disabled {
-      background: rgba(88, 96, 138, 0.55);
-      cursor: default;
-      box-shadow: none;
-    }
-
-    .primary-btn:not(:disabled):hover {
-      transform: translateY(-1px);
-      box-shadow: 0 10px 20px rgba(78, 104, 255, 0.35);
-    }
-
-    #hud {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 14px;
-    }
-
-    .hud-field {
-      background: rgba(33, 36, 64, 0.78);
-      border: 1px solid rgba(98, 112, 196, 0.45);
-      border-radius: 12px;
-      padding: 12px 14px;
+    #play-ui {
+      flex: 1 1 50%;
+      padding: 20px 28px 28px;
+      background: rgba(12, 12, 22, 0.94);
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      min-height: 64px;
+      gap: 20px;
+      min-height: 0;
+    }
+
+    #hud-row {
+      display: flex;
+      gap: 18px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      min-height: 0;
+    }
+
+    .hud-tile {
+      flex: 0 0 auto;
+      width: min(25vw, 240px);
+      height: min(50vh, 240px);
+      min-width: 140px;
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(33, 36, 64, 0.78);
+      border: 1px solid rgba(98, 112, 196, 0.45);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 16px 32px rgba(10, 12, 32, 0.35);
     }
 
     .hud-label {
@@ -201,49 +177,59 @@
     }
 
     .hud-value {
-      font-size: 22px;
+      font-size: 28px;
       font-weight: 600;
       color: #f4f6ff;
     }
 
-    #hint-bar {
+    #hint-button {
+      flex: 0 0 auto;
+      width: clamp(90px, 12vw, 130px);
+      aspect-ratio: 1 / 1;
+      background: rgba(92, 112, 234, 0.85);
+      border: 1px solid rgba(175, 186, 255, 0.85);
+      border-radius: 18px;
+      color: #f8f9ff;
       display: flex;
-      gap: 12px;
+      flex-direction: column;
       align-items: center;
-    }
-
-    .hint-button {
-      flex: 1;
-      padding: 10px 12px;
-      background: rgba(48, 54, 96, 0.75);
-      border: 1px solid rgba(122, 128, 206, 0.5);
-      border-radius: 10px;
-      color: #dbe1ff;
-      font-size: 14px;
+      justify-content: center;
+      gap: 6px;
+      font-size: 18px;
       font-weight: 600;
       cursor: pointer;
-      position: relative;
-      transition: background 0.18s ease, transform 0.18s ease;
+      box-shadow: 0 18px 32px rgba(66, 88, 220, 0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
-    .hint-button:disabled {
+    #hint-button:disabled {
       cursor: default;
-      background: rgba(48, 54, 96, 0.35);
-      border-color: rgba(122, 128, 206, 0.25);
-      color: rgba(205, 212, 255, 0.4);
+      background: rgba(52, 56, 92, 0.55);
+      border-color: rgba(96, 102, 160, 0.45);
+      color: rgba(200, 204, 242, 0.6);
+      box-shadow: none;
     }
 
-    .hint-button.active {
-      background: rgba(92, 112, 234, 0.95);
-      border-color: rgba(175, 186, 255, 0.85);
-      box-shadow: 0 12px 28px rgba(92, 112, 234, 0.35);
+    #hint-button:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 36px rgba(86, 112, 255, 0.45);
+    }
+
+    #hint-button .hint-icon {
+      font-size: 26px;
+    }
+
+    #hint-button .hint-number {
+      font-size: 20px;
+      letter-spacing: 0.08em;
     }
 
     #orbifold-grid {
+      flex: 1 1 auto;
       display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
       gap: 12px;
-      margin-top: 6px;
+      align-content: start;
     }
 
     .orb-button {
@@ -326,7 +312,7 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.25s ease;
-      z-index: 10;
+      z-index: 20;
     }
 
     #summary-banner.active {
@@ -388,6 +374,29 @@
       justify-content: center;
     }
 
+    .primary-btn {
+      background: linear-gradient(135deg, #5b7bff, #627bff);
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .primary-btn:disabled {
+      background: rgba(88, 96, 138, 0.55);
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .primary-btn:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(78, 104, 255, 0.35);
+    }
+
     .secondary-btn {
       background: rgba(64, 68, 118, 0.7);
       border: 1px solid rgba(118, 128, 200, 0.5);
@@ -402,6 +411,58 @@
       background: rgba(82, 88, 148, 0.85);
     }
 
+    #setup-screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(6, 6, 14, 0.82);
+      backdrop-filter: blur(12px);
+      z-index: 18;
+      transition: opacity 0.2s ease;
+    }
+
+    #setup-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .setup-card {
+      background: rgba(30, 32, 60, 0.95);
+      border: 1px solid rgba(118, 132, 224, 0.5);
+      border-radius: 18px;
+      padding: 32px;
+      width: min(420px, 80vw);
+      color: #f0f2ff;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: 0 28px 48px rgba(10, 14, 40, 0.6);
+    }
+
+    .setup-card h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0.04em;
+    }
+
+    .setup-card label {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(200, 206, 255, 0.7);
+    }
+
+    #setup-level-select {
+      background: rgba(40, 44, 76, 0.85);
+      border: 1px solid rgba(122, 132, 214, 0.6);
+      color: #e2e5ff;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 15px;
+    }
+
     @media (max-width: 920px) {
       #app {
         height: 100vh;
@@ -409,16 +470,17 @@
         border-radius: 0;
       }
 
-      #ui-panel {
-        padding: 16px 18px 22px;
-      }
-
-      header {
-        padding: 14px 18px 10px;
+      #play-ui {
+        padding: 18px 20px 24px;
       }
 
       .hud-value {
-        font-size: 18px;
+        font-size: 22px;
+      }
+
+      .hud-tile {
+        width: min(40vw, 200px);
+        height: min(45vh, 220px);
       }
 
       .orb-button {
@@ -444,18 +506,22 @@
         flex: 1 1 45%;
       }
 
-      #ui-panel {
-        flex: 0 0 55%;
-        grid-template-rows: auto auto auto;
-        gap: 12px;
+      #play-ui {
+        flex: 1 1 55%;
+        gap: 14px;
       }
 
-      #hint-bar {
-        flex-direction: column;
+      #hud-row {
+        gap: 14px;
       }
 
-      .hint-button {
-        width: 100%;
+      .hud-tile {
+        width: min(48vw, 180px);
+        height: min(40vh, 200px);
+      }
+
+      #orbifold-grid {
+        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
       }
     }
   </style>
@@ -467,61 +533,48 @@
       <div class="meta" id="app-version"></div>
     </header>
 
-    <section id="pattern-view" aria-label="Pattern view canvas">
-      <div class="hint-overlay" id="hint-overlay">
-        <div class="hint-banner rotation" id="hint-rotations"></div>
-        <div class="hint-banner mirror" id="hint-mirrors"></div>
-        <div class="hint-banner text" id="hint-text"></div>
-        <div class="target-pulse" id="hint-target"></div>
-      </div>
-    </section>
+    <div id="main-content">
+      <section id="pattern-view" aria-label="Pattern view canvas">
+        <div class="hint-overlay" id="hint-overlay">
+          <div class="hint-banner rotation" id="hint-rotations"></div>
+          <div class="hint-banner mirror" id="hint-mirrors"></div>
+          <div class="hint-banner text" id="hint-text"></div>
+          <div class="target-pulse" id="hint-target"></div>
+        </div>
+      </section>
 
-    <section id="ui-panel" aria-label="Game controls">
-      <div id="level-controls">
-        <label for="level-select">Level</label>
-        <select id="level-select"></select>
-        <button id="start-run" class="primary-btn">Start Run</button>
-        <button id="end-run" class="secondary-btn">End Run</button>
-      </div>
-
-      <div id="hud">
-        <div class="hud-field">
-          <span class="hud-label">Run Timer</span>
-          <span class="hud-value" id="hud-run-timer">00:00</span>
-        </div>
-        <div class="hud-field">
-          <span class="hud-label">Item Timer</span>
-          <span class="hud-value" id="hud-item-timer">00:00</span>
-        </div>
-        <div class="hud-field">
-          <span class="hud-label">Score</span>
-          <span class="hud-value" id="hud-score">0</span>
-        </div>
-        <div class="hud-field">
-          <span class="hud-label">Streak</span>
-          <span class="hud-value" id="hud-streak">0</span>
-        </div>
-        <div class="hud-field">
-          <span class="hud-label">Progress</span>
-          <span class="hud-value" id="hud-progress">0 / 0</span>
-        </div>
-        <div class="hud-field">
-          <span class="hud-label">Level Gate</span>
-          <span class="hud-value" id="hud-gate">--</span>
-        </div>
-      </div>
-
-      <div>
-        <div id="hint-bar">
-          <button class="hint-button" data-hint="1" id="hint-1">Hint 1 · Rotations</button>
-          <button class="hint-button" data-hint="2" id="hint-2" disabled>Hint 2 · Mirrors</button>
-          <button class="hint-button" data-hint="3" id="hint-3" disabled>Hint 3 · Text</button>
-          <button class="hint-button" data-hint="4" id="hint-4" disabled>Hint 4 · Target</button>
+      <section id="play-ui" aria-label="Game HUD and controls">
+        <div id="hud-row">
+          <div class="hud-tile">
+            <span class="hud-label">Run Timer</span>
+            <span class="hud-value" id="hud-run-timer">00:00</span>
+          </div>
+          <div class="hud-tile">
+            <span class="hud-label">Item Timer</span>
+            <span class="hud-value" id="hud-item-timer">00:00</span>
+          </div>
+          <div class="hud-tile">
+            <span class="hud-label">Streak</span>
+            <span class="hud-value" id="hud-streak">0</span>
+          </div>
+          <button id="hint-button" class="hint-square" type="button" aria-label="Request hint" disabled>
+            <span class="hint-icon">💡</span>
+            <span class="hint-number">–</span>
+          </button>
         </div>
 
         <div id="orbifold-grid" role="grid" aria-label="Orbifold choices"></div>
+      </section>
+    </div>
+
+    <div id="setup-screen" role="dialog" aria-modal="true" aria-hidden="false">
+      <div class="setup-card">
+        <h2>Choose a Level</h2>
+        <label for="setup-level-select">Level</label>
+        <select id="setup-level-select"></select>
+        <button id="setup-start" class="primary-btn">Start Playing</button>
       </div>
-    </section>
+    </div>
 
     <div id="summary-banner" role="dialog" aria-modal="true" aria-hidden="true">
       <div class="summary-card">
@@ -563,5 +616,16 @@
   <script src="game_service.js"></script>
   <script src="game_app.js"></script>
   <script src="game_tests.js"></script>
+  <script>
+    const startGameApp = () => {
+      window.GameApp?.init?.();
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startGameApp, { once: true });
+    } else {
+      startGameApp();
+    }
+  </script>
 </body>
 </html>
