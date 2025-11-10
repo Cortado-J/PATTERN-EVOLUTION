@@ -709,6 +709,8 @@ function ensureP5Globals(p5Instance) {
       lerp: bind(p5Instance.lerp),
       radians: bind(p5Instance.radians),
       degrees: bind(p5Instance.degrees),
+      colorMode: bind(p5Instance.colorMode),
+      color: bind(p5Instance.color),
     };
 
     Object.entries(p5Aliases).forEach(([name, fn]) => {
