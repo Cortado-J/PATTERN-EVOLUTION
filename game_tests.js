@@ -91,7 +91,75 @@
     console.info("Game tests executed");
   }
 
+  function patternRenderSmokeTest() {
+    const report = {
+      hasGameApp: Boolean(global.GameApp),
+      initInvoked: false,
+      hasP5Instance: false,
+      hasRedrawPattern: typeof global.redrawPattern === "function",
+      redrawInvoked: false,
+      error: null,
+    };
+
+    if (!report.hasGameApp) {
+      console.warn("Smoke test: GameApp is not available on the window.");
+      return report;
+    }
+
+    const app = global.GameApp;
+
+    if (!app._p5Instance && typeof app.init === "function") {
+      try {
+        app.init();
+        report.initInvoked = true;
+      } catch (err) {
+        report.error = `init() threw: ${err?.message || err}`;
+        return report;
+      }
+    }
+
+    report.hasP5Instance = Boolean(app._p5Instance);
+    if (!report.hasP5Instance) {
+      console.warn("Smoke test: p5 instance is not available after init().");
+      return report;
+    }
+
+    report.hasRedrawPattern = typeof global.redrawPattern === "function";
+    if (!report.hasRedrawPattern) {
+      console.warn("Smoke test: global.redrawPattern is not defined.");
+      return report;
+    }
+
+    const instance = app._p5Instance;
+    const originalRedraw = typeof instance.redraw === "function" ? instance.redraw.bind(instance) : null;
+
+    if (!originalRedraw) {
+      report.error = "p5 instance does not expose a redraw() function.";
+      return report;
+    }
+
+    instance.redraw = (...args) => {
+      report.redrawInvoked = true;
+      return originalRedraw(...args);
+    };
+
+    try {
+      global.redrawPattern();
+    } catch (err) {
+      report.error = err?.message || String(err);
+    } finally {
+      instance.redraw = originalRedraw;
+    }
+
+    if (!report.redrawInvoked) {
+      console.warn("Smoke test: calling global.redrawPattern() did not hit p5.redraw().");
+    }
+
+    return report;
+  }
+
   global.GameTests = {
     runGameTests,
+    patternRenderSmokeTest,
   };
 })(typeof window !== "undefined" ? window : this);

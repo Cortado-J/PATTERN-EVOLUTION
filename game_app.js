@@ -746,6 +746,8 @@ function ensureP5Globals(p5Instance) {
     maybeAssign("TWO_PI", Math.PI * 2);
     maybeAssign("HALF_PI", Math.PI / 2);
     maybeAssign("QUARTER_PI", Math.PI / 4);
+    maybeAssign("HSB", p5Instance.HSB);
+    maybeAssign("RGB", p5Instance.RGB);
 
     GameAppGlobal._p5GlobalsReady = true;
   }
@@ -760,6 +762,11 @@ function ensureP5Globals(p5Instance) {
     GameAppGlobal._p5Instance = instance;
     ensureP5Globals(instance);
     GameAppGlobal._p5Installed = true;
+    global.redrawPattern = () => {
+      if (GameAppGlobal._p5Instance) {
+        GameAppGlobal._p5Instance.redraw();
+      }
+    };
   }
 
 function queuePatternRender() {
