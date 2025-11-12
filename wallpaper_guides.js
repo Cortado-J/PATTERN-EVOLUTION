@@ -10,13 +10,9 @@ function drawSymmetryGuides(pg, spec, g, { a, tileRange }) {
 
   const ctx = createGuideContext(pg, spec, g, { a, tileRange });
 
-  if (showMirrors) {
-    collectGeneratorGuides(ctx);
-    collectTransformGuides(ctx);
-    applyLatticeHeuristics(ctx);
-  } else {
-    collectRotationGenerators(ctx);
-  }
+  collectGeneratorGuides(ctx);
+  collectTransformGuides(ctx);
+  applyLatticeHeuristics(ctx);
 
   if (showMirrors) {
     renderLineGuides(ctx);
@@ -28,18 +24,6 @@ function drawSymmetryGuides(pg, spec, g, { a, tileRange }) {
   }
 
   ctx.pg.pop();
-}
-
-function collectRotationGenerators(ctx) {
-  for (const gen of ctx.spec.generators || []) {
-    if (gen.type !== "rotation") continue;
-    const centers = gen.centers && gen.centers.length ? gen.centers : [{ u: 0, v: 0 }];
-    const ord = gen.order || 2;
-    for (const c of centers) {
-      const C = ctx.uvToXY(c.u, c.v);
-      ctx.addCenter(C, ord);
-    }
-  }
 }
 
 function createGuideContext(pg, spec, g, { a, tileRange }) {
