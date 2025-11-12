@@ -701,9 +701,19 @@
       });
 
       if (gatePassed) {
+        if (Array.isArray(this.progress.completedLevels)) {
+          if (!this.progress.completedLevels.includes(summary.levelId)) {
+            this.progress.completedLevels.push(summary.levelId);
+          }
+        } else {
+          this.progress.completedLevels = [summary.levelId];
+        }
+
         const nextLevel = getNextLevel(summary.levelId);
-        if (nextLevel && !this.progress.unlockedLevels.includes(nextLevel.id)) {
-          this.progress.unlockedLevels.push(nextLevel.id);
+        if (nextLevel) {
+          if (!this.progress.unlockedLevels.includes(nextLevel.id)) {
+            this.progress.unlockedLevels.push(nextLevel.id);
+          }
           this.progress.lastLevelId = nextLevel.id;
         } else {
           this.progress.lastLevelId = summary.levelId;

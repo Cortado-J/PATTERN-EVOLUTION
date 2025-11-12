@@ -4,20 +4,42 @@
 function drawSymmetryGuides(pg, spec, g, { a, tileRange }) {
   if (typeof showSymmetryGuides === "undefined" || !showSymmetryGuides) return;
 
+  const mode = typeof symmetryGuideMode === "string" ? symmetryGuideMode : "all";
+  const showRotations = mode === "rotations" || mode === "all";
+  const showMirrors = mode === "mirrors" || mode === "all";
+
   const ctx = createGuideContext(pg, spec, g, { a, tileRange });
 
-  collectGeneratorGuides(ctx);
-  collectTransformGuides(ctx);
-  applyLatticeHeuristics(ctx);
+  if (showMirrors) {
+    collectGeneratorGuides(ctx);
+    collectTransformGuides(ctx);
+    applyLatticeHeuristics(ctx);
+  } else {
+    collectRotationGenerators(ctx);
+  }
 
-  renderLineGuides(ctx);
+  if (showMirrors) {
+    renderLineGuides(ctx);
+  }
 
-  if (ctx.rotCenters.length) {
+  if (showRotations && ctx.rotCenters.length) {
     const rotationMeta = prepareRotationCenterMetadata(ctx);
     renderRotationCenters(ctx, rotationMeta);
   }
 
   ctx.pg.pop();
+}
+
+function collectRotationGenerators(ctx) {
+  for (const gen of ctx.spec.generators || []) {
+    if (gen.type !== "rotation") continue;
+    const centers = gen.centers && gen.centers.length ? gen.centers : [{ u: 0, v: 0 }];
+    const ord = gen.order || 2;
+    for (const c of centers) {
+      const C = ctx.uvToXY(c.u, c.v);
+      ctx.addCenter(C, ord);
+    }
+  }
 }
 
 function createGuideContext(pg, spec, g, { a, tileRange }) {

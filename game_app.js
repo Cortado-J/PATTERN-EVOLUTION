@@ -28,6 +28,7 @@
     currentGenome: null,
     baseGenome: null,
     showGuides: false,
+    guideMode: "off",
     orbButtons: new Map(),
     disabledOrbs: new Set(),
     allowedOrbs: null,
@@ -56,6 +57,8 @@
     persistence: global.GamePersistence,
     runConfig: GameConfig.cloneRunConfig(),
   });
+
+  global.symmetryGuideMode = "off";
 
   function createOverlayLibrary() {
     const rotate = (order, extra = "") => ({ textCue: `Watch for ${order}-fold rotation centres.${extra ? " " + extra : ""}` });
@@ -191,6 +194,69 @@
     }
   }
 
+  function handleOrbGuess(btn, orb) {
+    if (btn.disabled || !state.runActive || state.inputLocked) return;
+    btn.disabled = true;
+    service.onGuess(orb);
+  }
+
+  function clearInputLockTimer() {
+    if (!state.inputLockTimer) return;
+    clearTimeout(state.inputLockTimer);
+    state.inputLockTimer = null;
+  }
+
+  function setInputLock(active, durationMs) {
+    if (!elements.orbGrid) return;
+    if (active) {
+      clearInputLockTimer();
+      state.inputLocked = true;
+      elements.orbGrid.classList.add("input-locked");
+      if (durationMs) {
+        state.inputLockTimer = setTimeout(() => {
+          state.inputLockTimer = null;
+          setInputLock(false);
+        }, durationMs);
+      }
+    } else {
+      clearInputLockTimer();
+      state.inputLocked = false;
+      elements.orbGrid.classList.remove("input-locked");
+    }
+  }
+
+  function isOrbAllowed(orb) {
+    if (!state.allowedOrbs) return true;
+    return state.allowedOrbs.has(ensureOrb(orb));
+  }
+
+  function setAllowedOrbs(level) {
+    if (level && Array.isArray(level.allowed) && level.allowed.length) {
+      state.allowedOrbs = new Set(level.allowed.map(ensureOrb));
+    } else {
+      state.allowedOrbs = null;
+    }
+    applyOrbButtonAvailability();
+  }
+
+  function applyOrbButtonAvailability() {
+    state.orbButtons.forEach((btn, orb) => {
+      if (state.runActive) {
+        if (!isOrbAllowed(orb)) {
+          btn.disabled = true;
+        } else if (!btn.classList.contains("incorrect") && !btn.classList.contains("correct") && !btn.classList.contains("assisted")) {
+          btn.disabled = false;
+        }
+      } else {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  function attachOrbHandlers(btn, orb) {
+    btn.addEventListener("click", () => handleOrbGuess(btn, orb));
+  }
+
   function renderOrbifoldGrid() {
     const layout = GameConfig.ORBIFOLD_GRID_LAYOUT;
     elements.orbGrid.innerHTML = "";
@@ -273,6 +339,9 @@
     }
 
     const unlocked = new Set(progress.unlockedLevels || []);
+    if (unlocked.size === 0 && allLevels.length > 0) {
+      unlocked.add(allLevels[0].id);
+    }
     let currentLevelId = progress.lastLevelId && allLevels.some(lvl => lvl.id === progress.lastLevelId)
       ? progress.lastLevelId
       : allLevels[0].id;
@@ -313,13 +382,18 @@
     container.innerHTML = "";
 
     let nextLevel = allLevels[currentIndex] || null;
+    if (!nextLevel && allLevels.length > 0) {
+      nextLevel = allLevels[0];
+      currentIndex = 0;
+    }
     state.level = nextLevel || null;
 
     stages.forEach((stage, index) => {
       const node = document.createElement("div");
       node.className = "stage-node";
 
-      const levelStatuses = stage.levels.map(lvl => statusById[lvl.id]);
+      const stageLevels = (stage.levels || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+      const levelStatuses = stageLevels.map(lvl => statusById[lvl.id]);
       const stageCompleted = levelStatuses.every(status => status === "completed");
       const stageCurrent = levelStatuses.includes("current");
       if (stageCompleted) node.classList.add("completed");
@@ -340,7 +414,7 @@
       title.textContent = stage.label;
       details.appendChild(title);
 
-      const summarySource = stage.levels.find(lvl => lvl.summary);
+      const summarySource = stageLevels.find(lvl => lvl.summary);
       if (summarySource) {
         const desc = document.createElement("div");
         desc.className = "stage-desc";
@@ -350,7 +424,7 @@
 
       const pills = document.createElement("div");
       pills.className = "level-label";
-      stage.levels.sort((a, b) => (a.order || 0) - (b.order || 0)).forEach((lvl) => {
+      stageLevels.forEach((lvl) => {
         const pill = document.createElement("span");
         pill.className = "level-pill";
         const status = statusById[lvl.id];
@@ -367,7 +441,8 @@
 
     if (elements.stageNextLabel) {
       if (state.level) {
-        const text = `Next up: <strong>${state.level.stageLabel || state.level.stageCode}</strong> · ${state.level.label}`;
+        const stageName = state.level.stageLabel || state.level.stageCode || state.level.modeLabel || "";
+        const text = `Next up: <strong>${stageName}</strong> · ${state.level.label}`;
         elements.stageNextLabel.innerHTML = text;
       } else {
         elements.stageNextLabel.textContent = "Next up: complete";
@@ -463,8 +538,11 @@
     state.timers.itemStart = performance.now();
     setInputLock(false);
     state.orbButtons.forEach(btn => {
-      btn.classList.remove("incorrect", "correct", "assisted");
+      btn.classList.remove("incorrect", "correct", "assisted", "throb");
     });
+    elements.hintTarget.textContent = "";
+    elements.hintTarget.style.display = "none";
+    applyGuideMode("off");
     applyOrbButtonAvailability();
     console.log("[DEBUG] activateItem: About to call renderPatternForItem");
     renderPatternForItem(item);
@@ -482,8 +560,7 @@
     console.log("[DEBUG] renderPatternForItem: Creating base genome");
     state.baseGenome = cloneDeep(item.genome || createGenomeForOrb(item.truth));
     state.currentGenome = scaleGenomeForView(state.baseGenome);
-    state.showGuides = false;
-    global.showSymmetryGuides = false;
+    applyGuideMode("off");
     console.log("[DEBUG] renderPatternForItem: About to call queuePatternRender");
     queuePatternRender();
     console.log("[DEBUG] renderPatternForItem: queuePatternRender completed");
@@ -512,22 +589,23 @@
     const overlays = state.currentItem.overlays || {};
     switch (order) {
       case 1:
-        if (overlays.textCue) {
-          elements.hintRotation.textContent = overlays.textCue;
-        }
-        state.showGuides = true;
-        global.showSymmetryGuides = true;
+        elements.hintRotation.textContent = overlays.rotations && overlays.rotations.length
+          ? "Rotation centres highlighted."
+          : "Focus on the rotational anchor points.";
         elements.hintOverlay.classList.add("active");
+        applyGuideMode("rotations");
         queuePatternRender();
         break;
       case 2:
-        elements.hintMirror.textContent = overlays.textCue || "Mirror families highlighted.";
+        elements.hintMirror.textContent = overlays.mirrors && overlays.mirrors.length
+          ? "Mirror lines and glide axes highlighted." 
+          : "Trace mirrored motifs and glide repeats.";
+        elements.hintOverlay.classList.add("active");
+        applyGuideMode("all");
+        queuePatternRender();
         break;
       case 3:
-        elements.hintText.textContent = overlays.textCue || "Focus on the distinguishing feature.";
-        break;
-      case 4:
-        revealTargetOrb(state.currentItem.truth);
+        throbTargetOrb(state.currentItem.truth);
         break;
       default:
         break;
@@ -552,19 +630,15 @@
     elements.hintText.textContent = "";
     elements.hintTarget.textContent = "";
     elements.hintTarget.style.display = "none";
-    state.availableHints = { 1: false, 2: false, 3: false, 4: false };
+    state.availableHints = { 1: false, 2: false, 3: false };
     state.nextHintOrder = null;
+    applyGuideMode("off");
     updateHintButton();
   }
 
   function resetHintUiForItem(item) {
     resetHintUi();
-    state.availableHints = {
-      1: Boolean(item.overlays && item.overlays.rotations && item.overlays.rotations.length !== undefined),
-      2: Boolean(item.overlays && item.overlays.mirrors && item.overlays.mirrors.length !== undefined),
-      3: Boolean(item.overlays && item.overlays.textCue),
-      4: true,
-    };
+    state.availableHints = { 1: true, 2: true, 3: true };
     state.nextHintOrder = computeNextHintOrder(0);
     updateHintButton();
   }
@@ -576,7 +650,10 @@
   function highlightResolution(result) {
     const truth = ensureOrb(result.truth);
     const picked = result.picked ? ensureOrb(result.picked) : null;
-    state.orbButtons.forEach(btn => (btn.disabled = true));
+    state.orbButtons.forEach(btn => {
+      btn.disabled = true;
+      btn.classList.remove("throb");
+    });
     const truthBtn = state.orbButtons.get(truth);
     if (truthBtn) truthBtn.classList.add("correct");
     if (picked && picked !== truth) {
@@ -586,9 +663,73 @@
     if (result.assisted && truthBtn) {
       truthBtn.classList.add("assisted");
     }
+    applyGuideMode("off");
     state.nextHintOrder = null;
     updateHintButton();
     setInputLock(false);
+  }
+
+  function activateHintOverlay(order, itemId) {
+    if (!state.currentItem || state.currentItem.id !== itemId) return;
+    const overlays = state.currentItem.overlays || {};
+    switch (order) {
+      case 1:
+        elements.hintRotation.textContent = overlays.rotations && overlays.rotations.length
+          ? "Rotation centres highlighted"
+          : "No rotation overlays available";
+        elements.hintOverlay.classList.add("active");
+        applyGuideMode("rotations");
+        queuePatternRender();
+        break;
+      case 2:
+        elements.hintMirror.textContent = overlays.mirrors && overlays.mirrors.length
+          ? "Mirror lines and glide axes highlighted."
+          : "No mirror overlays available";
+        elements.hintOverlay.classList.add("active");
+        applyGuideMode("all");
+        queuePatternRender();
+        break;
+      case 3:
+        throbTargetOrb(state.currentItem.truth);
+        break;
+      default:
+        break;
+    }
+  }
+
+  function computeNextHintOrder(afterOrder) {
+    for (let i = 1; i <= 3; i++) {
+      if (isHintAvailable(i) && i > afterOrder) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  function updateHintButton() {
+    const btn = elements.hintButton;
+    if (!btn) return;
+    const numberEl = elements.hintNumber;
+    const next = state.runActive ? state.nextHintOrder : null;
+    if (numberEl) {
+      numberEl.textContent = next ? `${next}` : "–";
+    }
+    btn.disabled = !Number.isInteger(next);
+  }
+
+  function applyGuideMode(mode) {
+    const normalized = mode === "rotations" || mode === "mirrors" || mode === "all" ? mode : "off";
+    const changed = state.guideMode !== normalized;
+    state.guideMode = normalized;
+    if (normalized === "off") {
+      state.showGuides = false;
+      global.showSymmetryGuides = false;
+    } else {
+      state.showGuides = true;
+      global.showSymmetryGuides = true;
+    }
+    global.symmetryGuideMode = normalized;
+    return changed;
   }
 
   function updateHud(runState) {
@@ -616,18 +757,38 @@
     return `${mm}:${ss}`;
   }
 
+  function formatPercent(value) {
+    if (!Number.isFinite(value)) return "0%";
+    return `${Math.round(value * 100)}%`;
+  }
+
   function showSummary(summary, gatePassed) {
-    if (!summary) return;
-    elements.summaryTitle.textContent = gatePassed ? "Level Gate Passed" : "Run Summary";
-    elements.summaryScore.textContent = `${summary.totalScore | 0}`;
-    elements.summaryAccuracy.textContent = `${Math.round((summary.accuracy || 0) * 100)}%`;
-    elements.summaryMedian.textContent = `${(summary.medianItemSeconds || 0).toFixed(1)} s`;
-    elements.summaryStreak.textContent = `${summary.longestStreak | 0}`;
+    if (!elements.summaryBanner) return;
+    const data = summary || {};
+    const passed = Boolean(gatePassed);
+    if (elements.summaryTitle) {
+      elements.summaryTitle.textContent = passed ? "Gate passed!" : "Run complete";
+    }
+    if (elements.summaryScore) {
+      elements.summaryScore.textContent = `${data.totalScore ?? 0}`;
+    }
+    if (elements.summaryAccuracy) {
+      elements.summaryAccuracy.textContent = formatPercent(data.accuracy ?? 0);
+    }
+    if (elements.summaryMedian) {
+      elements.summaryMedian.textContent = formatSeconds(data.medianItemSeconds ?? 0);
+    }
+    if (elements.summaryStreak) {
+      elements.summaryStreak.textContent = `${data.longestStreak ?? 0}`;
+    }
+    elements.summaryBanner.classList.remove("hidden");
     elements.summaryBanner.classList.add("active");
     elements.summaryBanner.setAttribute("aria-hidden", "false");
   }
 
   function hideSummary() {
+    if (!elements.summaryBanner) return;
+    elements.summaryBanner.classList.add("hidden");
     elements.summaryBanner.classList.remove("active");
     elements.summaryBanner.setAttribute("aria-hidden", "true");
   }
@@ -644,115 +805,6 @@
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
-  }
-
-  function attachOrbHandlers(btn, orb) {
-    btn.addEventListener("click", () => handleOrbGuess(btn, orb));
-  }
-
-  function handleOrbGuess(btn, orb) {
-    if (btn.disabled || !state.runActive || state.inputLocked) return;
-    btn.disabled = true;
-    service.onGuess(orb);
-  }
-
-  function clearInputLockTimer() {
-    if (!state.inputLockTimer) return;
-    clearTimeout(state.inputLockTimer);
-    state.inputLockTimer = null;
-  }
-
-  function setInputLock(active, durationMs) {
-    if (!elements.orbGrid) return;
-    if (active) {
-      clearInputLockTimer();
-      state.inputLocked = true;
-      elements.orbGrid.classList.add("input-locked");
-      if (durationMs) {
-        state.inputLockTimer = setTimeout(() => {
-          state.inputLockTimer = null;
-          setInputLock(false);
-        }, durationMs);
-      }
-    } else {
-      clearInputLockTimer();
-      state.inputLocked = false;
-      elements.orbGrid.classList.remove("input-locked");
-    }
-  }
-
-  function isOrbAllowed(orb) {
-    if (!state.allowedOrbs) return true;
-    return state.allowedOrbs.has(ensureOrb(orb));
-  }
-
-  function setAllowedOrbs(level) {
-    if (level && Array.isArray(level.allowed) && level.allowed.length) {
-      state.allowedOrbs = new Set(level.allowed.map(ensureOrb));
-    } else {
-      state.allowedOrbs = null;
-    }
-    applyOrbButtonAvailability();
-  }
-
-  function applyOrbButtonAvailability() {
-    state.orbButtons.forEach((btn, orb) => {
-      if (state.runActive) {
-        if (!isOrbAllowed(orb)) {
-          btn.disabled = true;
-        } else if (!btn.classList.contains("incorrect") && !btn.classList.contains("correct") && !btn.classList.contains("assisted")) {
-          btn.disabled = false;
-        }
-      } else {
-        btn.disabled = false;
-      }
-    });
-  }
-
-  function activateHintOverlay(order, itemId) {
-    if (!state.currentItem || state.currentItem.id !== itemId) return;
-    const overlays = state.currentItem.overlays || {};
-    switch (order) {
-      case 1:
-        elements.hintRotation.textContent = overlays.rotations && overlays.rotations.length
-          ? "Rotation centres highlighted"
-          : "No rotation overlays available";
-        break;
-      case 2:
-        elements.hintMirror.textContent = overlays.mirrors && overlays.mirrors.length
-          ? "Mirror directions highlighted"
-          : "No mirror overlays available";
-        break;
-      case 3:
-        elements.hintText.textContent = overlays.textCue || "Study the distinctive motif";
-        break;
-      case 4:
-        elements.hintTarget.textContent = `Target: ${formatOrbLabel(state.currentItem.truth)}`;
-        elements.hintTarget.style.display = "block";
-        break;
-      default:
-        break;
-    }
-  }
-
-  function computeNextHintOrder(afterOrder) {
-    for (let i = 1; i <= 4; i++) {
-      if (isHintAvailable(i) && i > afterOrder) {
-        return i;
-      }
-    }
-    return null;
-  }
-
-  function updateHintButton() {
-    const btn = elements.hintButton;
-    if (!btn) return;
-    const numberEl = elements.hintNumber;
-    const next = state.runActive ? state.nextHintOrder : null;
-    if (numberEl) {
-      numberEl.textContent = next ? `${next}` : "–";
-    }
-    btn.disabled = !Number.isInteger(next);
   }
 
   function showSetupScreen() {
@@ -818,21 +870,7 @@
     renderPattern(p5);
   }
 
-function onWindowResized(p5) {
-  const container = elements.patternView;
-  const rect = container.getBoundingClientRect();
-  p5.resizeCanvas(rect.width, rect.height);
-  if (state.baseGenome) {
-    state.currentGenome = scaleGenomeForView(state.baseGenome);
-  }
-  renderPattern(p5);
-}
-
-function queueP5Redraw(p5) {
-  renderPattern(p5);
-}
-
-function ensureP5Globals(p5Instance) {
+  function ensureP5Globals(p5Instance) {
     console.log("[DEBUG] ensureP5Globals: Starting");
     if (!p5Instance || GameAppGlobal._p5GlobalsReady) {
       console.log("[DEBUG] ensureP5Globals: Early return - p5Instance:", !!p5Instance, "_p5GlobalsReady:", GameAppGlobal._p5GlobalsReady);
@@ -840,6 +878,7 @@ function ensureP5Globals(p5Instance) {
     }
 
     const bind = (fn) => (...args) => fn.apply(p5Instance, args);
+
     const maybeAssign = (name, value) => {
       if (typeof global[name] === "undefined") {
         global[name] = value;
@@ -896,21 +935,18 @@ function ensureP5Globals(p5Instance) {
       }
     });
 
-    console.log("[DEBUG] ensureP5Globals: Assigning constants");
     maybeAssign("PI", Math.PI);
     maybeAssign("TWO_PI", Math.PI * 2);
     maybeAssign("HALF_PI", Math.PI / 2);
     maybeAssign("QUARTER_PI", Math.PI / 4);
     maybeAssign("HSB", p5Instance.HSB);
     maybeAssign("RGB", p5Instance.RGB);
-    // Restore CLOSE properly - it was causing issues before but now we know the rendering works
     if (p5Instance.CLOSE !== undefined) {
       maybeAssign("CLOSE", p5Instance.CLOSE);
     }
 
-    // Assign functions from pattern.js
     maybeAssign("estimateCellSize", window.estimateCellSize);
-    
+
     GameAppGlobal._p5GlobalsReady = true;
     console.log("[DEBUG] ensureP5Globals: Completed, _p5GlobalsReady set to true");
   }
@@ -938,7 +974,7 @@ function ensureP5Globals(p5Instance) {
     };
   }
 
-function queuePatternRender() {
+  function queuePatternRender() {
     console.log("[DEBUG] queuePatternRender: Starting");
     console.log("[DEBUG] queuePatternRender: global.redrawPattern type:", typeof global.redrawPattern);
     if (typeof global.redrawPattern === "function") {
