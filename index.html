@@ -31,25 +31,8 @@
       margin: 0 auto;
       background: rgba(18, 18, 28, 0.92);
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: 1fr;
       overflow: hidden;
-    }
-
-    header {
-      grid-row: 1;
-      padding: calc(16px + env(safe-area-inset-top, 0px)) 28px 14px;
-      display: flex;
-      justify-content: flex-start;
-      align-items: center;
-      gap: 14px;
-      position: sticky;
-      top: 0;
-      z-index: 30;
-      background: linear-gradient(135deg, rgba(38, 42, 78, 0.9), rgba(22, 24, 44, 0.9));
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(120, 132, 210, 0.35);
-      min-height: calc(var(--header-height) + env(safe-area-inset-top, 0px));
-      box-sizing: border-box;
     }
 
     .brand-mark {
@@ -68,22 +51,238 @@
       fill: rgba(12, 24, 16, 0.92);
     }
 
-    header h1 {
-      margin: 0;
-      font-size: 24px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #f5fffb;
-    }
-
     #main-content {
-      grid-row: 2;
+      grid-row: 1;
       flex: 1 1 auto;
       display: flex;
       flex-direction: column;
       gap: 12px;
       min-height: 0;
+    }
+
+    #landing-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      padding: clamp(32px, 8vh, 96px) clamp(16px, 8vw, 96px);
+      background: linear-gradient(180deg, rgba(11, 12, 32, 0.95), rgba(6, 6, 16, 0.92));
+      backdrop-filter: blur(14px);
+      z-index: 40;
+      transition: opacity 0.26s ease;
+      opacity: 1;
+    }
+
+    #landing-overlay[aria-hidden="true"] {
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+    }
+
+    .landing-card {
+      width: min(880px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      color: #f4f6ff;
+    }
+
+    .landing-header {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .landing-header h1 {
+      margin: 0;
+      font-size: clamp(30px, 5vw, 42px);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #f5fffb;
+    }
+
+    .landing-tagline {
+      margin: 4px 0 0;
+      font-size: clamp(16px, 2.6vw, 18px);
+      letter-spacing: 0.04em;
+      color: rgba(226, 229, 255, 0.82);
+    }
+
+    .landing-body {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 18px;
+    }
+
+    .landing-mode {
+      background: rgba(42, 46, 88, 0.82);
+      border: 1px solid rgba(128, 142, 232, 0.65);
+      border-radius: 18px;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 20px 40px rgba(8, 12, 40, 0.45);
+    }
+
+    .landing-mode h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .landing-mode p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: rgba(214, 220, 255, 0.82);
+    }
+
+    .landing-mode .primary-btn {
+      margin-top: auto;
+      align-self: flex-start;
+    }
+
+    .mode-screen {
+      position: relative;
+      height: 100%;
+      display: none;
+      flex-direction: column;
+      background: rgba(18, 18, 28, 0.92);
+      color: #eef1ff;
+    }
+
+    .mode-screen[aria-hidden="false"] {
+      display: flex;
+    }
+
+    .mode-shell {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      padding: clamp(18px, 4vw, 28px);
+      gap: clamp(14px, 3vw, 22px);
+    }
+
+    .mode-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .mode-header h2 {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 28px);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #f5fffb;
+    }
+
+    .mode-description {
+      margin: 0;
+      font-size: clamp(14px, 2.6vw, 16px);
+      color: rgba(216, 222, 255, 0.78);
+      line-height: 1.55;
+    }
+
+    .mode-return {
+      background: rgba(62, 76, 176, 0.16);
+      border: 1px solid rgba(126, 142, 232, 0.45);
+      color: #e8ecff;
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .mode-return:hover {
+      background: rgba(90, 110, 210, 0.32);
+    }
+
+    .mode-content {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(12px, 3vw, 18px);
+      min-height: 0;
+    }
+
+    .mode-iframe {
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: clamp(320px, 60vh, 680px);
+      border: none;
+      border-radius: 22px;
+      background: rgba(12, 14, 32, 0.92);
+      box-shadow: 0 26px 48px rgba(6, 8, 24, 0.55);
+    }
+
+    .holding-card {
+      background: rgba(42, 46, 88, 0.78);
+      border: 1px solid rgba(128, 142, 232, 0.55);
+      border-radius: 18px;
+      padding: clamp(14px, 3vw, 22px);
+      box-shadow: 0 20px 44px rgba(8, 10, 34, 0.48);
+    }
+
+    .holding-card h3 {
+      margin: 0 0 10px;
+      font-size: clamp(18px, 3vw, 20px);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #f2f4ff;
+    }
+
+    .holding-card p,
+    .holding-card ul {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: rgba(214, 222, 255, 0.82);
+    }
+
+    .holding-card ul {
+      padding-left: 20px;
+    }
+
+    .training-mode {
+      display: grid;
+      grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+      gap: clamp(18px, 4vw, 32px);
+      align-items: stretch;
+      min-height: 0;
+    }
+
+    .training-live {
+      background: rgba(16, 18, 36, 0.92);
+      border: 1px solid rgba(106, 124, 220, 0.45);
+      border-radius: 18px;
+      padding: clamp(12px, 3vw, 20px);
+      box-shadow: 0 24px 48px rgba(6, 8, 24, 0.55);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .training-live #main-content {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .training-live #pattern-view,
+    .training-live #play-ui {
+      background: rgba(12, 12, 22, 0.95);
+      border-radius: 16px;
     }
 
     #hud-bar {
@@ -469,6 +668,7 @@
     #setup-screen.hidden {
       opacity: 0;
       pointer-events: none;
+      visibility: hidden;
     }
 
     .setup-card {
@@ -619,13 +819,25 @@
         height: 100vh;
       }
 
-      header {
-        padding: calc(14px + env(safe-area-inset-top, 0px)) 20px 12px;
-        gap: 10px;
+      #landing-overlay {
+        padding: clamp(24px, 6vh, 64px) clamp(12px, 6vw, 48px);
       }
 
-      header h1 {
-        font-size: 20px;
+      .landing-card {
+        gap: 20px;
+      }
+
+      .landing-body {
+        gap: 14px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+
+      .landing-mode {
+        padding: 16px 18px;
+      }
+
+      .landing-mode h2 {
+        font-size: 17px;
       }
 
       #hud-bar {
@@ -685,19 +897,53 @@
         flex-direction: column;
       }
 
-      header h1 {
-        font-size: 18px;
+      #landing-overlay {
+        padding: 20px 16px 28px;
       }
 
-      #hud-bar {
-        padding: 12px 20px 0;
+      .landing-card {
+        gap: 16px;
       }
 
-      #pattern-view {
-        flex: 0 0 auto;
-        width: 100%;
-        aspect-ratio: 1 / 1;
-        min-height: 0;
+      .landing-header {
+        align-items: flex-start;
+      }
+
+      .landing-header h1 {
+        font-size: clamp(24px, 6vw, 32px);
+      }
+
+      .landing-tagline {
+        font-size: 15px;
+      }
+
+      .landing-body {
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
+
+      .landing-mode {
+        padding: 14px 14px;
+        gap: 10px;
+      }
+
+      .landing-mode h2 {
+        font-size: 16px;
+      }
+
+      .landing-mode p {
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .training-mode {
+        gap: 12px;
+      }
+
+
+      .holding-card,
+      .training-live {
+        padding: 14px;
       }
 
       #play-ui {
@@ -756,85 +1002,204 @@
 </head>
 <body>
   <div id="app">
-    <header>
-      <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 32 32" role="img" aria-hidden="true">
-          <path d="M16 2c-4.971 0-9 4.029-9 9 0 2.686 1.188 5.104 3.066 6.77C7.977 19.614 6.5 22.186 6.5 25.061 6.5 29.48 10.019 33 14.439 33h3.122C21.98 33 25.5 29.48 25.5 25.061c0-2.875-1.477-5.447-3.566-7.291C23.812 16.104 25 13.686 25 11c0-4.971-4.029-9-9-9zm-1.5 17h3v5h-3v-5zm0 7h3v5h-3v-5z" transform="translate(0 -1)" />
-        </svg>
-      </span>
-      <h1>Symmetree</h1>
-    </header>
-
-    <div id="main-content">
-      <div id="hud-bar">
-        <div id="hud-row">
-          <div class="hud-tile">
-            <span class="hud-label">Run Timer</span>
-            <span class="hud-value" id="hud-run-timer">00:00</span>
+    <div id="landing-overlay" aria-hidden="false">
+      <div class="landing-card" role="dialog" aria-modal="true" aria-labelledby="landing-title">
+        <header class="landing-header">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" role="img" aria-hidden="true">
+              <circle cx="16" cy="16" r="12" fill="rgba(255, 255, 255, 0.25)"></circle>
+              <path d="M16 6 L22 16 L16 26 L10 16 Z" fill="rgba(0, 0, 0, 0.65)"></path>
+            </svg>
           </div>
-          <div class="hud-tile">
-            <span class="hud-label">Item Timer</span>
-            <span class="hud-value" id="hud-item-timer">00:00</span>
+          <div>
+            <h1 id="landing-title">Orbifold Studio</h1>
+            <p class="landing-tagline">Explore, evolve, and master the 17 wallpaper groups.</p>
           </div>
-          <div class="hud-tile">
-            <span class="hud-label">Streak</span>
-            <span class="hud-value" id="hud-streak">0</span>
+        </header>
+        <div class="landing-body">
+          <div class="landing-mode" data-mode-id="pattern">
+            <h2>Pattern Mode</h2>
+            <p>Pick a symmetry group or go random, tweak density & zoom, then save your tile.</p>
+            <button type="button" class="primary-btn mode-launch" data-mode="pattern">Enter Pattern Mode</button>
           </div>
-          <button id="hint-button" class="hint-square" type="button" aria-label="Request hint" disabled>
-            <span class="hint-icon">💡</span>
-            <span class="hint-number">–</span>
-          </button>
-        </div>
-      </div>
-
-      <section id="pattern-view" aria-label="Pattern view canvas">
-        <div class="hint-overlay" id="hint-overlay">
-          <div class="hint-banner rotation" id="hint-rotations"></div>
-          <div class="hint-banner mirror" id="hint-mirrors"></div>
-          <div class="hint-banner text" id="hint-text"></div>
-          <div class="target-pulse" id="hint-target"></div>
-        </div>
-      </section>
-
-      <section id="play-ui" aria-label="Game HUD and controls">
-        <div id="orbifold-grid" role="grid" aria-label="Orbifold choices"></div>
-      </section>
-    </div>
-
-    <div id="setup-screen" role="dialog" aria-modal="true" aria-hidden="false">
-      <div class="setup-card">
-        <h2>Training Path</h2>
-        <div class="stage-path" id="stage-path" role="list"></div>
-        <div class="stage-actions">
-          <div class="stage-next" id="stage-next-label">Next up: loading…</div>
-          <button id="setup-start" class="primary-btn">Play</button>
+          <div class="landing-mode" data-mode-id="palette">
+            <h2>Palette Mode</h2>
+            <p>Generate colour palettes with OKLCH, click to apply, and save favourites for later.</p>
+            <button type="button" class="primary-btn mode-launch" data-mode="palette">Enter Palette Mode</button>
+          </div>
+          <div class="landing-mode" data-mode-id="training">
+            <h2>Training Mode</h2>
+            <p>Learn to recognise every orbifold: step-by-step hints, branching quizzes, and stats.</p>
+            <button type="button" class="primary-btn mode-launch" data-mode="training">Start Training</button>
+          </div>
+          <div class="landing-mode" data-mode-id="game">
+            <h2>Game Mode</h2>
+            <p>Race the clock in mixed challenges. Keep your streak alive for higher scores.</p>
+            <button type="button" class="primary-btn mode-launch" data-mode="game">Play Game Mode</button>
+          </div>
+          <div class="landing-mode" data-mode-id="gallery">
+            <h2>Gallery Mode</h2>
+            <p>Browse saved patterns & palettes, remix live, export tiles, and manage your library.</p>
+            <button type="button" class="primary-btn mode-launch" data-mode="gallery">Open Gallery</button>
+          </div>
         </div>
       </div>
     </div>
+    <div id="pattern-screen" class="mode-screen" data-mode="pattern" aria-hidden="true">
+      <div class="mode-shell">
+        <div class="mode-header">
+          <h2>Pattern Studio</h2>
+          <button type="button" class="mode-return" data-return>Back to modes</button>
+        </div>
+        <p class="mode-description">Pick any of the 17 wallpaper groups—or let the dice decide—to forge new motifs. Adjust density and zoom inside the evolution lab, then save the current tile with a timestamped preset.</p>
+        <div class="mode-content">
+          <iframe src="evolve.html" title="Pattern mode editor" class="mode-iframe" loading="lazy"></iframe>
+        </div>
+      </div>
+    </div>
 
-    <div id="summary-banner" role="dialog" aria-modal="true" aria-hidden="true">
-      <div class="summary-card">
-        <h2 id="summary-title">Run Summary</h2>
-        <div class="summary-metrics">
-          <div class="summary-field">
-            <label>Score</label>
-            <span id="summary-score">0</span>
-          </div>
-          <div class="summary-field">
-            <label>Accuracy</label>
-            <span id="summary-accuracy">0%</span>
-          </div>
-          <div class="summary-field">
-            <label>Median Item Time</label>
-            <span id="summary-median">0.0 s</span>
-          </div>
-          <div class="summary-field">
-            <label>Longest Streak</label>
-            <span id="summary-streak">0</span>
+    <div id="training-screen" class="mode-screen" data-mode="training" aria-hidden="true">
+      <div class="mode-shell">
+        <div class="mode-header">
+          <h2>Training Mode</h2>
+          <button type="button" class="mode-return" data-return>Back to modes</button>
+        </div>
+        <p class="mode-description">Sharpen recognition skills with live drills. Direct Recognition is active today; Branching Recognition will unlock once the guided path is ready.</p>
+        <div class="mode-content training-mode">
+          <section class="holding-card">
+            <h3>Submodes</h3>
+            <ul>
+              <li><strong>Direct recognition</strong>: identify the active orbifold using guides and hints.</li>
+              <li><strong>Branching recognition</strong>: Coming soon – staged prompts that reason from rotations to mirrors.</li>
+            </ul>
+          </section>
+          <div class="training-live">
+            <div id="main-content">
+              <div id="hud-bar">
+                <div id="hud-row">
+                  <div class="hud-tile">
+                    <span class="hud-label">Run Timer</span>
+                    <span class="hud-value" id="hud-run-timer">00:00</span>
+                  </div>
+                  <div class="hud-tile">
+                    <span class="hud-label">Item Timer</span>
+                    <span class="hud-value" id="hud-item-timer">00:00</span>
+                  </div>
+                  <div class="hud-tile">
+                    <span class="hud-label">Streak</span>
+                    <span class="hud-value" id="hud-streak">0</span>
+                  </div>
+                  <button id="hint-button" class="hint-square" type="button" aria-label="Request hint" disabled>
+                    <span class="hint-icon">💡</span>
+                    <span class="hint-number">–</span>
+                  </button>
+                </div>
+              </div>
+
+              <section id="pattern-view" aria-label="Pattern view canvas">
+                <div class="hint-overlay" id="hint-overlay">
+                  <div class="hint-banner rotation" id="hint-rotations"></div>
+                  <div class="hint-banner mirror" id="hint-mirrors"></div>
+                  <div class="hint-banner text" id="hint-text"></div>
+                  <div class="target-pulse" id="hint-target"></div>
+                </div>
+              </section>
+
+              <section id="play-ui" aria-label="Game HUD and controls">
+                <div id="orbifold-grid" role="grid" aria-label="Orbifold choices"></div>
+              </section>
+            </div>
+
+            <div id="setup-screen" class="hidden" role="dialog" aria-modal="true" aria-hidden="true">
+              <div class="setup-card">
+                <h2>Training Path</h2>
+                <div class="stage-path" id="stage-path" role="list"></div>
+                <div class="stage-actions">
+                  <div class="stage-next" id="stage-next-label">Next up: loading…</div>
+                  <button id="setup-start" class="primary-btn">Play</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="summary-banner" role="dialog" aria-modal="true" aria-hidden="true">
+              <div class="summary-card">
+                <h2 id="summary-title">Run Summary</h2>
+                <div class="summary-metrics">
+                  <div class="summary-field">
+                    <label>Score</label>
+                    <span id="summary-score">0</span>
+                  </div>
+                  <div class="summary-field">
+                    <label>Accuracy</label>
+                    <span id="summary-accuracy">0%</span>
+                  </div>
+                  <div class="summary-field">
+                    <label>Median Item Time</label>
+                    <span id="summary-median">0.0 s</span>
+                  </div>
+                  <div class="summary-field">
+                    <label>Longest Streak</label>
+                    <span id="summary-streak">0</span>
+                  </div>
+                </div>
+                <div class="summary-actions">
+                  <button id="summary-close" class="primary-btn">Continue</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="summary-actions">
-          <button id="summary-close" class="primary-btn">Continue</button>
+      </div>
+    </div>
+
+    <div id="palette-screen" class="mode-screen" data-mode="palette" aria-hidden="true">
+      <div class="mode-shell">
+        <div class="mode-header">
+          <h2>Palette Lab</h2>
+          <button type="button" class="mode-return" data-return>Back to modes</button>
+        </div>
+        <p class="mode-description">Batch-generate OKLCH palettes, remix favourites, and hand off colours to active patterns. The interactive generator is landing soon; this screen will host palette creation and management.</p>
+        <div class="mode-content">
+          <section class="holding-card">
+            <h3>Coming Soon</h3>
+            <p>Palette batching, remix controls, and timestamped saves will appear here in the next milestone.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div id="game-screen" class="mode-screen" data-mode="game" aria-hidden="true">
+      <div class="mode-shell">
+        <div class="mode-header">
+          <h2>Game Mode</h2>
+          <button type="button" class="mode-return" data-return>Back to modes</button>
+        </div>
+        <p class="mode-description">Timed rounds, streak multipliers, and high scores are slated for this arena. While we wire in the scoring loop, the space is held for future playtests.</p>
+        <div class="mode-content">
+          <section class="holding-card">
+            <h3>Hold Tight</h3>
+            <p>The competitive loop is queued behind training polish. Expect timed runs, mixed prompts, and streak bonuses.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div id="gallery-screen" class="mode-screen" data-mode="gallery" aria-hidden="true">
+      <div class="mode-shell">
+        <div class="mode-header">
+          <h2>Gallery</h2>
+          <button type="button" class="mode-return" data-return>Back to modes</button>
+        </div>
+        <p class="mode-description">Browse saved patterns and palettes, tweak live previews, and export tiles or presets. Until the storage layer lands, this space doubles as a roadmap preview.</p>
+        <div class="mode-content">
+          <section class="holding-card">
+            <h3>Roadmap</h3>
+            <ul>
+              <li>Unified list of saved patterns & palettes.</li>
+              <li>Quick swap of active palette and density controls.</li>
+              <li>Export presets: SVG tile, 4096 PNG, preview grid, palette JSON & CSS.</li>
+            </ul>
+          </section>
         </div>
       </div>
     </div>
@@ -857,10 +1222,79 @@
       window.GameApp?.init?.();
     };
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', startGameApp, { once: true });
-    } else {
+    const initModeRouter = () => {
+      const landingOverlay = document.getElementById('landing-overlay');
+      const modeScreens = Array.from(document.querySelectorAll('.mode-screen'));
+      const modeButtons = document.querySelectorAll('.mode-launch');
+      const returnButtons = document.querySelectorAll('[data-return]');
+      let activeMode = null;
+
+      const setScreenVisibility = (modeId) => {
+        modeScreens.forEach((screen) => {
+          const isActive = screen.dataset.mode === modeId;
+          screen.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+        });
+      };
+
+      const showLanding = () => {
+        activeMode = null;
+        landingOverlay.setAttribute('aria-hidden', 'false');
+        setScreenVisibility(null);
+        const firstButton = landingOverlay.querySelector('.mode-launch');
+        if (firstButton) {
+          firstButton.focus({ preventScroll: true });
+        }
+      };
+
+      const activateMode = (modeId) => {
+        if (!modeId) {
+          showLanding();
+          return;
+        }
+        activeMode = modeId;
+        landingOverlay.setAttribute('aria-hidden', 'true');
+        setScreenVisibility(modeId);
+        const activeScreen = modeScreens.find((screen) => screen.dataset.mode === modeId);
+        if (activeScreen) {
+          const heading = activeScreen.querySelector('h2');
+          if (heading) {
+            heading.focus?.({ preventScroll: true });
+          }
+        }
+      };
+
+      modeButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const mode = btn.dataset.mode;
+          activateMode(mode);
+        });
+      });
+
+      returnButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          showLanding();
+        });
+      });
+
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && activeMode) {
+          event.preventDefault();
+          showLanding();
+        }
+      });
+
+      showLanding();
+    };
+
+    const onReady = () => {
       startGameApp();
+      initModeRouter();
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', onReady, { once: true });
+    } else {
+      onReady();
     }
   </script>
 </body>
