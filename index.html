@@ -26,7 +26,7 @@
 
     #app {
       position: relative;
-      width: min(1180px, 100vw);
+      width: min(1180px, 100%);
       height: 100vh;
       margin: 0 auto;
       background: rgba(18, 18, 28, 0.92);
@@ -35,20 +35,12 @@
       overflow: hidden;
     }
 
-    .brand-mark {
-      width: 32px;
-      height: 32px;
-      border-radius: 10px;
-      background: radial-gradient(circle at 40% 20%, #8be36f 0%, #3fcf8b 52%, #1d8f5a 100%);
-      display: grid;
-      place-items: center;
-      box-shadow: 0 8px 18px rgba(15, 110, 70, 0.45);
-    }
-
-    .brand-mark svg {
-      width: 20px;
-      height: 20px;
-      fill: rgba(12, 24, 16, 0.92);
+    .landing-logo {
+      width: clamp(96px, 12vw, 128px);
+      height: clamp(96px, 12vw, 128px);
+      object-fit: contain;
+      flex: 0 0 auto;
+      filter: drop-shadow(0 8px 18px rgba(15, 110, 70, 0.45));
     }
 
     #main-content {
@@ -66,8 +58,8 @@
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
-      align-items: center;
-      padding: clamp(32px, 8vh, 96px) clamp(16px, 8vw, 96px);
+      align-items: stretch;
+      padding: clamp(16px, 4vh, 48px) clamp(8px, 4vw, 48px);
       background: linear-gradient(180deg, rgba(11, 12, 32, 0.95), rgba(6, 6, 16, 0.92));
       backdrop-filter: blur(14px);
       z-index: 40;
@@ -82,16 +74,18 @@
     }
 
     .landing-card {
-      width: min(880px, 100%);
+      width: 100%;
+      max-width: 880px;
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 28px;
+      gap: 12px;
       color: #f4f6ff;
     }
 
     .landing-header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 18px;
     }
 
@@ -99,7 +93,7 @@
       margin: 0;
       font-size: clamp(30px, 5vw, 42px);
       letter-spacing: 0.08em;
-      text-transform: uppercase;
+      text-transform: none;
       color: #f5fffb;
     }
 
@@ -114,16 +108,19 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 18px;
+      box-sizing: border-box;
     }
 
     .landing-mode {
       background: rgba(42, 46, 88, 0.82);
       border: 1px solid rgba(128, 142, 232, 0.65);
       border-radius: 18px;
-      padding: 20px 22px;
+      padding: 16px 18px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
+      min-width: 0;
+      box-sizing: border-box;
       box-shadow: 0 20px 40px rgba(8, 12, 40, 0.45);
     }
 
@@ -254,7 +251,7 @@
 
     .training-mode {
       display: grid;
-      grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr);
       gap: clamp(18px, 4vw, 32px);
       align-items: stretch;
       min-height: 0;
@@ -283,6 +280,321 @@
     .training-live #play-ui {
       background: rgba(12, 12, 22, 0.95);
       border-radius: 16px;
+    }
+
+    .gallery-layout {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(18px, 4vw, 26px);
+    }
+
+    .gallery-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .gallery-count {
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(208, 216, 255, 0.78);
+    }
+
+    .gallery-refresh {
+      appearance: none;
+      border: 1px solid rgba(126, 142, 232, 0.5);
+      border-radius: 999px;
+      background: rgba(46, 58, 112, 0.3);
+      color: rgba(232, 236, 255, 0.92);
+      padding: 9px 16px;
+      font-size: 14px;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: background 0.18s ease;
+    }
+
+    .gallery-refresh:hover,
+    .gallery-refresh:focus-visible {
+      background: rgba(86, 112, 210, 0.42);
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: clamp(14px, 3vw, 22px);
+    }
+
+    .gallery-item {
+      background: rgba(20, 24, 52, 0.85);
+      border: 1px solid rgba(116, 132, 230, 0.4);
+      border-radius: 18px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      box-shadow: 0 28px 54px rgba(6, 10, 42, 0.48);
+    }
+
+    .gallery-thumb {
+      position: relative;
+      padding-top: 100%;
+      background: radial-gradient(circle at 20% 20%, rgba(124, 132, 220, 0.35), rgba(42, 46, 88, 0.55));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gallery-thumb img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .gallery-thumb .gallery-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(214, 220, 255, 0.72);
+    }
+
+    .gallery-body {
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .gallery-body h3 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: 0.04em;
+      color: #eef2ff;
+    }
+
+    .gallery-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 13px;
+      color: rgba(208, 214, 255, 0.8);
+    }
+
+    .gallery-actions {
+      margin-top: auto;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .gallery-action {
+      appearance: none;
+      border: 1px solid rgba(126, 142, 232, 0.45);
+      background: rgba(46, 58, 112, 0.3);
+      color: rgba(226, 232, 255, 0.94);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.18s ease;
+    }
+
+    .gallery-action:hover,
+    .gallery-action:focus-visible {
+      background: rgba(86, 112, 210, 0.42);
+    }
+
+    .gallery-empty {
+      background: rgba(34, 38, 74, 0.86);
+      border: 1px dashed rgba(116, 132, 230, 0.5);
+      border-radius: 16px;
+      padding: clamp(20px, 5vw, 36px);
+      text-align: center;
+      color: rgba(208, 214, 255, 0.78);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .gallery-detail {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 12, 28, 0.78);
+      backdrop-filter: blur(16px);
+      z-index: 240;
+      padding: clamp(16px, 6vw, 60px);
+    }
+
+    .gallery-detail[hidden] {
+      display: none !important;
+    }
+
+    .gallery-detail-card {
+      position: relative;
+      width: min(920px, 96vw);
+      max-height: calc(100vh - 48px);
+      background: rgba(18, 20, 42, 0.95);
+      border: 1px solid rgba(124, 142, 232, 0.5);
+      border-radius: 22px;
+      box-shadow: 0 32px 64px rgba(4, 6, 28, 0.7);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .gallery-detail-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid rgba(132, 152, 244, 0.6);
+      background: rgba(30, 34, 78, 0.6);
+      color: rgba(232, 236, 255, 0.92);
+      font-size: 20px;
+      line-height: 0;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: background 0.2s ease;
+    }
+
+    .gallery-detail-close:hover,
+    .gallery-detail-close:focus-visible {
+      background: rgba(86, 112, 210, 0.55);
+    }
+
+    .gallery-detail-content {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: clamp(18px, 4vw, 32px);
+      padding: clamp(24px, 5vw, 42px);
+    }
+
+    @media (max-width: 880px) {
+      .gallery-detail-content {
+        grid-template-columns: minmax(0, 1fr);
+        max-height: none;
+      }
+    }
+
+    .gallery-detail-media {
+      position: relative;
+      background: radial-gradient(circle at 18% 18%, rgba(124, 132, 220, 0.3), rgba(30, 34, 74, 0.7));
+      border-radius: 18px;
+      overflow: hidden;
+      min-height: 280px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gallery-detail-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: rgba(14, 16, 34, 0.85);
+    }
+
+    .gallery-detail-media img[hidden],
+    .gallery-detail-fallback[hidden] {
+      display: none !important;
+    }
+
+    .gallery-detail-fallback {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(214, 220, 255, 0.75);
+    }
+
+    .gallery-detail-body {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .gallery-detail-title {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 26px);
+      letter-spacing: 0.04em;
+      color: #f0f4ff;
+    }
+
+    .gallery-detail-date,
+    .gallery-detail-summary {
+      font-size: 15px;
+      color: rgba(208, 214, 255, 0.78);
+      line-height: 1.6;
+    }
+
+    .gallery-detail-summary:empty {
+      display: none;
+    }
+
+    .gallery-detail-actions {
+      margin-top: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .gallery-detail-action {
+      appearance: none;
+      border-radius: 999px;
+      padding: 10px 20px;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .gallery-detail-action.primary {
+      background: linear-gradient(135deg, #5b7bff, #627bff);
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(78, 104, 255, 0.3);
+    }
+
+    .gallery-detail-action.primary:hover,
+    .gallery-detail-action.primary:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(78, 104, 255, 0.38);
+    }
+
+    .gallery-detail-action.danger {
+      background: rgba(72, 36, 52, 0.8);
+      color: #ffd6dd;
+      border: 1px solid rgba(214, 96, 136, 0.6);
+    }
+
+    .gallery-detail-action.danger:hover,
+    .gallery-detail-action.danger:focus-visible {
+      background: rgba(124, 46, 78, 0.85);
+    }
+
+    .gallery-detail-action:not(.primary):not(.danger) {
+      background: rgba(46, 58, 112, 0.3);
+      color: rgba(226, 232, 255, 0.94);
+      border: 1px solid rgba(126, 142, 232, 0.45);
     }
 
     #hud-bar {
@@ -794,6 +1106,16 @@
       margin-top: 6px;
     }
 
+    /* Mode-specific visibility helpers */
+    #training-screen[data-play-mode="training"] .game-only,
+    #training-screen[data-play-mode="training"] .hud-game-only {
+      display: none !important;
+    }
+
+    #training-screen[data-play-mode="game"] .training-only {
+      display: none !important;
+    }
+
     .stage-node.completed .stage-title {
       color: rgba(172, 235, 197, 0.9);
     }
@@ -895,14 +1217,16 @@
 
       #app {
         flex-direction: column;
+        width: 100%;
+        overflow: visible;
       }
 
       #landing-overlay {
-        padding: 20px 16px 28px;
+        padding: 2px calc(12px + env(safe-area-inset-right, 0px)) 14px calc(12px + env(safe-area-inset-left, 0px));
       }
 
       .landing-card {
-        gap: 16px;
+        gap: 1px;
       }
 
       .landing-header {
@@ -918,13 +1242,17 @@
       }
 
       .landing-body {
-        gap: 10px;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        width: 100%;
+        margin: 0 auto;
+        column-gap: 10px;
+        row-gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .landing-mode {
-        padding: 14px 14px;
+        padding: 10px 10px;
         gap: 10px;
+        min-width: 0;
       }
 
       .landing-mode h2 {
@@ -1005,42 +1333,37 @@
     <div id="landing-overlay" aria-hidden="false">
       <div class="landing-card" role="dialog" aria-modal="true" aria-labelledby="landing-title">
         <header class="landing-header">
-          <div class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 32 32" role="img" aria-hidden="true">
-              <circle cx="16" cy="16" r="12" fill="rgba(255, 255, 255, 0.25)"></circle>
-              <path d="M16 6 L22 16 L16 26 L10 16 Z" fill="rgba(0, 0, 0, 0.65)"></path>
-            </svg>
-          </div>
+          <img class="landing-logo" src="assets/images/orbifold_logo.png" alt="Orbifold Studio logo" />
           <div>
-            <h1 id="landing-title">Orbifold Studio</h1>
+            <h1 id="landing-title">Orbifold studio</h1>
             <p class="landing-tagline">Explore, evolve, and master the 17 wallpaper groups.</p>
           </div>
         </header>
         <div class="landing-body">
           <div class="landing-mode" data-mode-id="pattern">
-            <h2>Pattern Mode</h2>
-            <p>Pick a symmetry group or go random, tweak density & zoom, then save your tile.</p>
-            <button type="button" class="primary-btn mode-launch" data-mode="pattern">Enter Pattern Mode</button>
+            <h2>Pattern</h2>
+            <p>Pick a symmetry group or go random, tweak density & zoom, then save your pattern.</p>
+            <button type="button" class="primary-btn mode-launch" data-mode="pattern">Generate</button>
           </div>
           <div class="landing-mode" data-mode-id="palette">
-            <h2>Palette Mode</h2>
-            <p>Generate colour palettes with OKLCH, click to apply, and save favourites for later.</p>
-            <button type="button" class="primary-btn mode-launch" data-mode="palette">Enter Palette Mode</button>
+            <h2>Palette</h2>
+            <p>Generate colour palettes and save favourites for later.</p>
+            <button type="button" class="primary-btn mode-launch" data-mode="palette">Generate</button>
           </div>
           <div class="landing-mode" data-mode-id="training">
-            <h2>Training Mode</h2>
-            <p>Learn to recognise every orbifold: step-by-step hints, branching quizzes, and stats.</p>
-            <button type="button" class="primary-btn mode-launch" data-mode="training">Start Training</button>
+            <h2>Training</h2>
+            <p>Learn to recognise all 17 pattern types: step-by-step hints and recognition method.</p>
+            <button type="button" class="primary-btn mode-launch" data-mode="training">Train</button>
           </div>
           <div class="landing-mode" data-mode-id="game">
-            <h2>Game Mode</h2>
+            <h2>Game</h2>
             <p>Race the clock in mixed challenges. Keep your streak alive for higher scores.</p>
-            <button type="button" class="primary-btn mode-launch" data-mode="game">Play Game Mode</button>
+            <button type="button" class="primary-btn mode-launch" data-mode="game">Play</button>
           </div>
           <div class="landing-mode" data-mode-id="gallery">
-            <h2>Gallery Mode</h2>
-            <p>Browse saved patterns & palettes, remix live, export tiles, and manage your library.</p>
-            <button type="button" class="primary-btn mode-launch" data-mode="gallery">Open Gallery</button>
+            <h2>Gallery</h2>
+            <p>Browse saved patterns & palettes, export patterns, and manage your library.</p>
+            <button type="button" class="primary-btn mode-launch" data-mode="gallery">Browse</button>
           </div>
         </div>
       </div>
@@ -1058,34 +1381,41 @@
       </div>
     </div>
 
-    <div id="training-screen" class="mode-screen" data-mode="training" aria-hidden="true">
+    <div id="training-screen" class="mode-screen" data-mode="training" data-play-mode="training" aria-hidden="true">
       <div class="mode-shell">
         <div class="mode-header">
-          <h2>Training Mode</h2>
+          <h2 id="play-mode-title">Training Mode</h2>
           <button type="button" class="mode-return" data-return>Back to modes</button>
         </div>
-        <p class="mode-description">Sharpen recognition skills with live drills. Direct Recognition is active today; Branching Recognition will unlock once the guided path is ready.</p>
+        <p class="mode-description" id="play-mode-description">Sharpen recognition skills with live drills. Direct Recognition is active today; Branching Recognition will unlock once the guided path is ready.</p>
         <div class="mode-content training-mode">
-          <section class="holding-card">
+          <section class="holding-card training-only" id="training-overview">
             <h3>Submodes</h3>
             <ul>
               <li><strong>Direct recognition</strong>: identify the active orbifold using guides and hints.</li>
-              <li><strong>Branching recognition</strong>: Coming soon – staged prompts that reason from rotations to mirrors.</li>
             </ul>
+          </section>
+          <section class="holding-card game-only" id="game-overview">
+            <h3>Welcome to Game Mode</h3>
+            <p>Pick a difficulty to start a fresh sprint of randomised patterns. Hints add time penalties—use them wisely.</p>
           </section>
           <div class="training-live">
             <div id="main-content">
               <div id="hud-bar">
                 <div id="hud-row">
-                  <div class="hud-tile">
+                  <div class="hud-tile training-only" id="hud-relax-tile">
+                    <span class="hud-label">Relaxed Session</span>
+                    <span class="hud-value" id="hud-relax-message">Take your time.</span>
+                  </div>
+                  <div class="hud-tile hud-game-only">
                     <span class="hud-label">Run Timer</span>
                     <span class="hud-value" id="hud-run-timer">00:00</span>
                   </div>
-                  <div class="hud-tile">
+                  <div class="hud-tile hud-game-only">
                     <span class="hud-label">Item Timer</span>
                     <span class="hud-value" id="hud-item-timer">00:00</span>
                   </div>
-                  <div class="hud-tile">
+                  <div class="hud-tile hud-game-only">
                     <span class="hud-label">Streak</span>
                     <span class="hud-value" id="hud-streak">0</span>
                   </div>
@@ -1112,8 +1442,9 @@
 
             <div id="setup-screen" class="hidden" role="dialog" aria-modal="true" aria-hidden="true">
               <div class="setup-card">
-                <h2>Training Path</h2>
-                <div class="stage-path" id="stage-path" role="list"></div>
+                <h2 id="setup-heading">Training Path</h2>
+                <div class="stage-path training-only" id="stage-path" role="list"></div>
+                <div class="game-only" id="game-difficulty-picker" role="group" aria-labelledby="setup-heading"></div>
                 <div class="stage-actions">
                   <div class="stage-next" id="stage-next-label">Next up: loading…</div>
                   <button id="setup-start" class="primary-btn">Play</button>
@@ -1190,22 +1521,44 @@
           <h2>Gallery</h2>
           <button type="button" class="mode-return" data-return>Back to modes</button>
         </div>
-        <p class="mode-description">Browse saved patterns and palettes, tweak live previews, and export tiles or presets. Until the storage layer lands, this space doubles as a roadmap preview.</p>
-        <div class="mode-content">
-          <section class="holding-card">
-            <h3>Roadmap</h3>
-            <ul>
-              <li>Unified list of saved patterns & palettes.</li>
-              <li>Quick swap of active palette and density controls.</li>
-              <li>Export presets: SVG tile, 4096 PNG, preview grid, palette JSON & CSS.</li>
-            </ul>
-          </section>
+        <p class="mode-description">Browse saved patterns, revisit timestamped tiles, and send favourites back to the Pattern Studio.</p>
+        <div class="mode-content gallery-layout">
+          <div class="gallery-toolbar">
+            <span class="gallery-count" id="gallery-count">No patterns saved yet</span>
+            <button type="button" class="gallery-refresh" id="gallery-refresh">Refresh list</button>
+          </div>
+          <div id="gallery-grid" class="gallery-grid" role="list"></div>
+          <div id="gallery-empty" class="gallery-empty" hidden>
+            Patience! Once you save patterns from the Pattern Studio, they will appear here with their timestamp and summary.
+          </div>
+          <div id="gallery-detail" class="gallery-detail" role="dialog" aria-modal="true" aria-hidden="true" hidden>
+            <div class="gallery-detail-card">
+              <button type="button" class="gallery-detail-close" aria-label="Close detail view">×</button>
+              <div class="gallery-detail-content">
+                <div class="gallery-detail-media">
+                  <img id="gallery-detail-image" alt="Saved pattern preview" hidden />
+                  <div id="gallery-detail-fallback" class="gallery-detail-fallback" hidden>No preview available</div>
+                </div>
+                <div class="gallery-detail-body">
+                  <h3 id="gallery-detail-title" class="gallery-detail-title"></h3>
+                  <div id="gallery-detail-date" class="gallery-detail-date"></div>
+                  <div id="gallery-detail-summary" class="gallery-detail-summary"></div>
+                  <div class="gallery-detail-actions">
+                    <button type="button" id="gallery-detail-open" class="gallery-detail-action primary">Open in Pattern mode</button>
+                    <button type="button" id="gallery-detail-delete" class="gallery-detail-action danger">Delete pattern</button>
+                    <button type="button" id="gallery-detail-close" class="gallery-detail-action">Close</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+  <script src="pattern_storage.js"></script>
   <script src="wallpaper_groups.js"></script>
   <script src="wallpaper_math.js"></script>
   <script src="wallpaper_guides.js"></script>
@@ -1218,6 +1571,230 @@
   <script src="game_app.js"></script>
   <script src="game_tests.js"></script>
   <script>
+    window.GalleryView = (() => {
+      const gridEl = document.getElementById('gallery-grid');
+      const countEl = document.getElementById('gallery-count');
+      const emptyEl = document.getElementById('gallery-empty');
+      const detailEl = document.getElementById('gallery-detail');
+      const detailCloseBtn = detailEl?.querySelector('.gallery-detail-close');
+      const detailImage = document.getElementById('gallery-detail-image');
+      const detailFallback = document.getElementById('gallery-detail-fallback');
+      const detailTitle = document.getElementById('gallery-detail-title');
+      const detailDate = document.getElementById('gallery-detail-date');
+      const detailSummary = document.getElementById('gallery-detail-summary');
+      const detailOpenBtn = document.getElementById('gallery-detail-open');
+      const detailDeleteBtn = document.getElementById('gallery-detail-delete');
+      const detailDismissBtn = document.getElementById('gallery-detail-close');
+
+      let activeRecord = null;
+
+      const emitPatternLoad = (record) => {
+        if (!record) return;
+        try {
+          window.parent?.postMessage?.({ type: 'pattern:load', payload: record }, '*');
+        } catch (error) {
+          console.warn('[Gallery] pattern:load postMessage failed', error);
+        }
+      };
+
+      const closeDetail = () => {
+        if (!detailEl) return;
+        detailEl.hidden = true;
+        detailEl.setAttribute('aria-hidden', 'true');
+        activeRecord = null;
+      };
+
+      const openDetail = (record) => {
+        if (!detailEl || !record) return;
+        activeRecord = record;
+        if (detailTitle) detailTitle.textContent = record.name || 'Saved pattern';
+        if (detailDate) {
+          const timestamp = record.timestamp ? new Date(record.timestamp) : null;
+          detailDate.textContent = timestamp ? `Saved ${timestamp.toLocaleString()}` : '';
+        }
+        if (detailSummary) {
+          const summary = record.meta?.summary || '';
+          detailSummary.textContent = summary;
+        }
+        if (detailImage && record.preview) {
+          detailImage.src = record.preview;
+          detailImage.hidden = false;
+          if (detailFallback) detailFallback.hidden = true;
+        } else {
+          if (detailImage) detailImage.hidden = true;
+          if (detailFallback) detailFallback.hidden = false;
+        }
+        detailEl.hidden = false;
+        detailEl.setAttribute('aria-hidden', 'false');
+        detailEl.focus?.();
+      };
+
+      const clearGrid = () => {
+        if (!gridEl) return;
+        while (gridEl.firstChild) {
+          gridEl.removeChild(gridEl.firstChild);
+        }
+      };
+
+      const renderEmpty = () => {
+        if (!emptyEl) return;
+        emptyEl.hidden = false;
+      };
+
+      const hideEmpty = () => {
+        if (!emptyEl) return;
+        emptyEl.hidden = true;
+      };
+
+      const createThumb = (record) => {
+        const item = document.createElement('article');
+        item.className = 'gallery-item';
+        item.setAttribute('role', 'listitem');
+        item.tabIndex = 0;
+
+        const handleOpenDetail = (event) => {
+          event?.preventDefault?.();
+          openDetail(record);
+        };
+
+        item.addEventListener('click', (event) => {
+          // Avoid detail opening when action buttons are clicked
+          const target = event.target;
+          if (target instanceof HTMLElement && target.closest('.gallery-actions')) return;
+          handleOpenDetail(event);
+        });
+
+        item.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleOpenDetail(event);
+          }
+        });
+
+        const thumb = document.createElement('div');
+        thumb.className = 'gallery-thumb';
+        if (record.preview) {
+          const img = document.createElement('img');
+          img.src = record.preview;
+          img.alt = `${record.name} preview`;
+          thumb.appendChild(img);
+        } else {
+          const fallback = document.createElement('div');
+          fallback.className = 'gallery-fallback';
+          fallback.textContent = 'No Preview';
+          thumb.appendChild(fallback);
+        }
+        item.appendChild(thumb);
+
+        const body = document.createElement('div');
+        body.className = 'gallery-body';
+
+        const title = document.createElement('h3');
+        title.textContent = record.name;
+        body.appendChild(title);
+
+        const meta = document.createElement('div');
+        meta.className = 'gallery-meta';
+        const timestamp = new Date(record.timestamp);
+        const dateLine = document.createElement('div');
+        dateLine.textContent = `Saved ${timestamp.toLocaleString()}`;
+        meta.appendChild(dateLine);
+        if (record.meta?.summary) {
+          const summaryLine = document.createElement('div');
+          summaryLine.textContent = record.meta.summary;
+          meta.appendChild(summaryLine);
+        }
+        body.appendChild(meta);
+
+        const actions = document.createElement('div');
+        actions.className = 'gallery-actions';
+
+        const loadBtn = document.createElement('button');
+        loadBtn.type = 'button';
+        loadBtn.className = 'gallery-action';
+        loadBtn.textContent = 'Open in Pattern mode';
+        loadBtn.addEventListener('click', () => {
+          emitPatternLoad(record);
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'gallery-action';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.addEventListener('click', () => {
+          if (!window.PatternStorage) return;
+          window.PatternStorage.deletePattern(record.id);
+          GalleryView.refresh();
+        });
+
+        actions.appendChild(loadBtn);
+        actions.appendChild(deleteBtn);
+        body.appendChild(actions);
+
+        item.appendChild(body);
+        return item;
+      };
+
+      const updateCountLabel = (total) => {
+        if (!countEl) return;
+        countEl.textContent = total === 0
+          ? 'No patterns saved yet'
+          : `${total} saved pattern${total === 1 ? '' : 's'}`;
+      };
+
+      const refresh = () => {
+        if (!window.PatternStorage || !gridEl) return;
+        const records = window.PatternStorage.loadStoredPatterns();
+        clearGrid();
+        updateCountLabel(records.length);
+        if (!records.length) {
+          renderEmpty();
+          return;
+        }
+        hideEmpty();
+        const fragment = document.createDocumentFragment();
+        records.forEach((record) => {
+          fragment.appendChild(createThumb(record));
+        });
+        gridEl.appendChild(fragment);
+      };
+
+      if (detailCloseBtn) detailCloseBtn.addEventListener('click', closeDetail);
+      if (detailDismissBtn) detailDismissBtn.addEventListener('click', closeDetail);
+      if (detailEl) {
+        detailEl.addEventListener('click', (event) => {
+          if (event.target === detailEl) closeDetail();
+        });
+      }
+
+      if (detailOpenBtn) {
+        detailOpenBtn.addEventListener('click', () => {
+          if (activeRecord) {
+            emitPatternLoad(activeRecord);
+            closeDetail();
+          }
+        });
+      }
+
+      if (detailDeleteBtn) {
+        detailDeleteBtn.addEventListener('click', () => {
+          if (!activeRecord || !window.PatternStorage) return;
+          window.PatternStorage.deletePattern(activeRecord.id);
+          closeDetail();
+          GalleryView.refresh();
+        });
+      }
+
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !detailEl?.hidden) {
+          event.preventDefault();
+          closeDetail();
+        }
+      });
+
+      return { refresh };
+    })();
+
     const startGameApp = () => {
       window.GameApp?.init?.();
     };
@@ -1227,6 +1804,7 @@
       const modeScreens = Array.from(document.querySelectorAll('.mode-screen'));
       const modeButtons = document.querySelectorAll('.mode-launch');
       const returnButtons = document.querySelectorAll('[data-return]');
+      const galleryRefreshBtn = document.getElementById('gallery-refresh');
       let activeMode = null;
 
       const setScreenVisibility = (modeId) => {
@@ -1261,6 +1839,9 @@
             heading.focus?.({ preventScroll: true });
           }
         }
+        if (modeId === 'gallery') {
+          window.GalleryView?.refresh?.();
+        }
       };
 
       modeButtons.forEach((btn) => {
@@ -1276,6 +1857,18 @@
         });
       });
 
+      if (galleryRefreshBtn) {
+        galleryRefreshBtn.addEventListener('click', () => {
+          window.GalleryView?.refresh?.();
+        });
+      }
+
+      window.addEventListener('message', (event) => {
+        const data = event.data;
+        if (!data || data.type !== 'pattern:saved') return;
+        window.GalleryView?.refresh?.();
+      });
+
       window.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && activeMode) {
           event.preventDefault();
@@ -1289,6 +1882,7 @@
     const onReady = () => {
       startGameApp();
       initModeRouter();
+      window.GalleryView?.refresh?.();
     };
 
     if (document.readyState === 'loading') {

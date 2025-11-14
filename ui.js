@@ -5,6 +5,20 @@ function panelHeight() {
   return 350; // Increased significantly to ensure all controls are visible
 }
 
+function displayScaleForPattern(genome, width, height, paddingFactor = 3) {
+  if (!genome) return 1;
+  const spec = getGroupSpec(genome.group || "632");
+  const cell = estimateCellSize({ group: genome.group, motifScale: genome.motifScale });
+  const cellW = Math.max(1, cell.w || 1);
+  const cellH = Math.max(1, cell.h || 1);
+  const padX = typeof paddingFactor === "number" ? paddingFactor : 3;
+  const padY = padX;
+  const scaleX = width / (cellW * padX);
+  const scaleY = height / (cellH * padY);
+  const scale = Math.min(scaleX, scaleY);
+  return isFinite(scale) && scale > 0 ? scale : 1;
+}
+
 function calculatePoolLayout() {
   const cols = GRID_COLS;
   const gridH = height - HEADER_H - panelHeight();
@@ -145,6 +159,16 @@ function drawScreen() {
 function drawPoolGrid() {
   const layout = calculatePoolLayout();
   poolScroll = constrain(poolScroll, 0, layout.maxScroll);
+
+  push();
+  textAlign(LEFT, BOTTOM);
+  textSize(18);
+  fill(40);
+  text("Session Pool", layout.originX, layout.viewportTop - 8);
+  textSize(12);
+  fill(70);
+  text("Temporary workspace — use Gallery to keep favourites", layout.originX, layout.viewportTop - 22);
+  pop();
 
   const firstRow = floor(poolScroll / layout.cellSize);
   const rowOffset = poolScroll - firstRow * layout.cellSize;
@@ -291,14 +315,12 @@ function drawControls() {
   drawControlPanelContainer(layout);
 
   const actions = [
-    { key: "R", label: "Random", action: "random" },
-    { key: "C", label: "Clone", action: "clone" },
-    { key: "A", label: "Average", action: "average" },
-    { key: "S", label: "Select", action: "select" },
-    { key: "D", label: "Delete", action: "delete" }
+    { key: "C", label: "Create", action: "create" },
+    { key: "M", label: "Mutate", action: "mutate" },
+    { key: "B", label: "Blend", action: "blend" },
   ];
 
-  const buttonMetrics = renderActionButtonGrid(actions, layout, { buttonCols: 2 });
+  const buttonMetrics = renderActionButtonGrid(actions, layout, { buttonCols: 1 });
   const sliderMetrics = drawMutationSliderSection(layout, buttonMetrics);
   const groupMetrics = drawGroupFilterSection(layout, sliderMetrics);
   const sizeMetrics = drawPatternSizeSection(layout, groupMetrics);
@@ -322,7 +344,7 @@ function drawControls() {
 
   textSize(16);
   const parentsY = genY + 22;
-  text(`Selected parents: ${selectedParents.length}`, previewX + 16, parentsY);
+  text(`Selected tiles: ${selectedParents.length}`, previewX + 16, parentsY);
 
   textSize(14);
   const infoY = parentsY + 30;
@@ -353,9 +375,13 @@ function drawControls() {
       drawGenomeSummaryLabel(genomeSummary(item.genome), artX, artY + artSize + 6, artSize);
     }
   } else {
-    text("Choose an action or press R/C/A/S to preview.", previewX + 16, infoY);
-    text("Press Space to confirm a preview when shown.", previewX + 16, infoY + 20);
+    text("Choose an action or press C/R, M, or B to preview.", previewX + 16, infoY);
+    text("Space accepts previews. Backspace removes selected tiles.", previewX + 16, infoY + 20);
   }
+
+  const tipsY = infoY + 48;
+  text("Session tip: tap a tile again to deselect.", previewX + 16, tipsY);
+  text("Session pool clears when you leave—save favourites to Gallery.", previewX + 16, tipsY + 18);
 
   // Generation counter on the right edge within preview panel
   textAlign(RIGHT, TOP);

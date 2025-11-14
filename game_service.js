@@ -78,10 +78,6 @@
     return GameConfig.ensureOrbifold(input);
   }
 
-  function isFeatureEnabled(name) {
-    return GameConfig.isFeatureEnabled(name);
-  }
-
   function getLevels() {
     return GameConfig.LEVELS;
   }
@@ -203,15 +199,27 @@
       this.clock = opts.clock || DEFAULT_CLOCK;
       this.itemBank = ensureArray(opts.itemBank);
       this.itemSelector = typeof opts.selectItems === "function" ? opts.selectItems : null;
-      this.renderers = Object.assign({}, DEFAULT_RENDERERS, opts.renderers || {});
-      this.persistence = opts.persistence || GamePersistence;
-      this.userId = opts.userId || "local";
-      this.telemetrySink = opts.telemetrySink || null;
 
-      this.runConfig = GameConfig.cloneRunConfig(opts.runConfig || {});
-      deepFreeze(this.runConfig);
+function findLevel(levelId) {
+  return GameConfig.getLevel(levelId);
+}
 
-      this.progress = this.loadProgress();
+function getNextLevel(currentLevelId) {
+  const current = findLevel(currentLevelId);
+  if (!current) return null;
+  const levels = getLevels().filter(lvl => lvl.modeId === current.modeId);
+  levels.sort((a, b) => (a.order || 0) - (b.order || 0));
+  const idx = levels.findIndex(lvl => lvl.id === currentLevelId);
+  if (idx < 0) return null;
+  return levels[idx + 1] || null;
+}
+
+function shuffleInPlace(array, randomFn) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(randomFn() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
       if (!Array.isArray(this.progress.unlockedLevels)) {
         this.progress.unlockedLevels = [];
       }
@@ -247,14 +255,14 @@
     }
 
     loadProgress() {
-      if (!isFeatureEnabled("persistence") || !this.persistence || !this.persistence.loadProgress) {
+      if (!this.isFeatureEnabled("persistence") || !this.persistence || !this.persistence.loadProgress) {
         return copyProgress(GamePersistence ? GamePersistence.DEFAULT_PROGRESS : { unlockedLevels: [], confusionMatrix: {}, featureWeakness: { rotations: 0, mirrors: 0, glides: 0 } });
       }
       return copyProgress(this.persistence.loadProgress());
     }
 
     saveProgress() {
-      if (!isFeatureEnabled("persistence") || !this.persistence || !this.persistence.saveProgress) {
+      if (!this.isFeatureEnabled("persistence") || !this.persistence || !this.persistence.saveProgress) {
         return Promise.resolve();
       }
       const snapshot = copyProgress(this.progress);
@@ -262,7 +270,7 @@
     }
 
     saveRunSummary(summary) {
-      if (!isFeatureEnabled("persistence") || !this.persistence || !this.persistence.saveRunSummary) {
+      if (!this.isFeatureEnabled("persistence") || !this.persistence || !this.persistence.saveRunSummary) {
         return Promise.resolve();
       }
       return this.persistence.saveRunSummary(summary);
@@ -284,13 +292,14 @@
       const fallbackLevelId = this.progress?.lastLevelId || GameConfig.DEFAULT_LEVEL_ID;
       const resolvedLevelId = levelId || fallbackLevelId;
       console.log("[DEBUG] startRun: Starting with levelId:", resolvedLevelId);
-      const level = findLevel(resolvedLevelId);
+      const runOptions = options || {};
+      const providedLevel = runOptions.level ? Object.assign({}, runOptions.level) : null;
+      const level = providedLevel || findLevel(resolvedLevelId);
       if (!level) {
         const available = getLevels().map(lvl => lvl.id).join(", ");
         throw new Error(`Unknown level id: ${resolvedLevelId}. Available levels: ${available}`);
       }
 
-      const runOptions = options || {};
       const items = runOptions.items || this.selectItemsForLevel(level, runOptions);
       console.log("[DEBUG] startRun: Selected items count:", items?.length);
       if (!items || items.length === 0) {
@@ -303,6 +312,8 @@
 
       const sampled = items.slice(0, level.poolSize);
       console.log("[DEBUG] startRun: Sampled items:", sampled.length);
+      this.applyFeatureOverrides(runOptions.featureOverrides);
+      this.configureRunConfig(runOptions.runConfigOverrides);
       this.runState = createRunState(sampled, level.id, level.runSeconds);
       this.runState.status = GamePhase.RUNNING;
       this.currentLevel = level;
@@ -349,7 +360,7 @@
 
       this.resetRuntimeState();
 
-      if (isFeatureEnabled("persistence")) {
+      if (this.isFeatureEnabled("persistence")) {
         this.saveRunSummary(summary);
         this.saveProgress();
       }
@@ -383,7 +394,7 @@
     }
 
     onHintRequest(order) {
-      if (!isFeatureEnabled("hints")) return;
+      if (!this.isFeatureEnabled("hints")) return;
       if (!this.runState || this.runState.status !== GamePhase.RUNNING) return;
       if (this.currentItemStatus !== ItemStatus.ACTIVE) return;
       if (order < 1 || order > 4) return;
@@ -400,7 +411,7 @@
       if (!this.runState || this.runState.status !== GamePhase.RUNNING) return;
       const deltaSeconds = deltaMs / 1000;
 
-      if (isFeatureEnabled("timer")) {
+      if (this.isFeatureEnabled("timer")) {
         this.runState.runTimeRemaining = Math.max(0, this.runState.runTimeRemaining - deltaSeconds);
         if (this.runState.runTimeRemaining <= 0) {
           this.handleRunTimeout();
@@ -451,7 +462,7 @@
         this.currentResult.hintsUsed = order;
       }
 
-      if (isFeatureEnabled("penalties") && isFeatureEnabled("timer")) {
+      if (this.isFeatureEnabled("penalties") && this.isFeatureEnabled("timer")) {
         const deduct = this.runConfig.hintRunDeductSec;
         this.runState.runTimeRemaining = Math.max(0, this.runState.runTimeRemaining - deduct);
         if (this.runState.runTimeRemaining <= 0) {
@@ -480,7 +491,7 @@
     }
 
     triggerHintOverlay(order, itemId) {
-      if (!isFeatureEnabled("overlays")) return;
+      if (!this.isFeatureEnabled("overlays")) return;
       switch (order) {
         case 1:
           this.renderers.hint1(itemId);
@@ -538,13 +549,13 @@
     }
 
     resetStreakDueToWrong() {
-      if (!isFeatureEnabled("streaks")) return;
+      if (!this.isFeatureEnabled("streaks")) return;
       if (!this.runState) return;
       this.runState.currentStreak = 0;
     }
 
     resetStreakDueToHint() {
-      if (!isFeatureEnabled("streaks")) return;
+      if (!this.isFeatureEnabled("streaks")) return;
       if (!this.runState) return;
       this.runState.currentStreak = 0;
     }
@@ -571,7 +582,7 @@
       const basePoints = opts.correct ? computeItemPoints(this.currentResult, this.runConfig) : 0;
       let totalPoints = basePoints;
 
-      if (isFeatureEnabled("streaks")) {
+      if (this.isFeatureEnabled("streaks")) {
         if (!this.currentResult.assisted && this.currentResult.wrongs === 0 && hints === 0 && opts.correct) {
           this.runState.currentStreak += 1;
           if (this.runState.currentStreak >= this.runConfig.streakStart) {
@@ -618,7 +629,7 @@
         return;
       }
 
-      if (isFeatureEnabled("timer") && this.runState.runTimeRemaining <= 0) {
+      if (this.isFeatureEnabled("timer") && this.runState.runTimeRemaining <= 0) {
         this.endRun({ reason: "timeout" });
         return;
       }
@@ -684,7 +695,7 @@
     }
 
     evaluateGate(summary) {
-      if (!isFeatureEnabled("gating")) return true;
+      if (!this.isFeatureEnabled("gating")) return true;
       const level = this.currentLevel;
       if (!level) return false;
       const gate = level.gate;
@@ -724,7 +735,7 @@
     }
 
     emitTelemetry(eventName, data) {
-      if (!isFeatureEnabled("telemetry") || !eventName) return;
+      if (!this.isFeatureEnabled("telemetry") || !eventName) return;
       const payload = {
         event: eventName,
         timestamp: new Date().toISOString(),
@@ -744,6 +755,27 @@
 
   GameService.EVENTS = EVENTS;
   GameService.computeItemPoints = computeItemPoints;
+  GameService.prototype.isFeatureEnabled = function feature(name) {
+    return Boolean(this.features && Object.prototype.hasOwnProperty.call(this.features, name)
+      ? this.features[name]
+      : GameConfig.isFeatureEnabled(name));
+  };
+
+  GameService.prototype.applyFeatureOverrides = function applyFeatureOverrides(overrides) {
+    const merged = Object.assign({}, this.baseFeatures);
+    if (overrides && typeof overrides === "object") {
+      Object.keys(overrides).forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(merged, key)) {
+          merged[key] = Boolean(overrides[key]);
+        }
+      });
+    }
+    this.features = merged;
+  };
+
+  GameService.prototype.configureRunConfig = function configureRunConfig(overrides) {
+    this.runConfig = Object.assign({}, this.baseRunConfig, overrides || {});
+  };
 
   global.GameService = GameService;
 })(typeof window !== "undefined" ? window : this);

@@ -1,13 +1,119 @@
 body {
     margin: 0;
-    padding: 0;
+    padding: 24px 18px 40px;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    justify-content: flex-start;
     align-items: center;
+    gap: 18px;
     min-height: 100vh;
-    background-color: #f0f0f0;
+    background: linear-gradient(180deg, #060615 0%, #0c0f2b 55%, #05051a 100%);
+    color: #f5f7ff;
+    font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.pattern-toolbar {
+    width: min(920px, 96vw);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.save-guidance {
+    flex: 1 1 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.save-instructions {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: rgba(228, 232, 255, 0.86);
+}
+
+.save-instructions.primary {
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.save-instructions.secondary {
+    color: rgba(200, 204, 240, 0.78);
+}
+
+.save-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.save-target-label {
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    color: #ffd166;
+    font-weight: 600;
+}
+
+.save-target-label.inactive {
+    color: rgba(200, 204, 240, 0.78);
+    font-weight: 500;
+}
+
+.save-pattern-btn {
+    appearance: none;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 20px;
+    background: radial-gradient(circle at 20% 20%, rgba(126, 148, 255, 0.95), rgba(82, 104, 240, 0.9));
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    box-shadow: 0 16px 32px rgba(33, 46, 132, 0.45);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.save-pattern-btn:hover,
+.save-pattern-btn:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 20px 38px rgba(46, 66, 168, 0.55);
+}
+
+.save-pattern-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 12px 24px rgba(28, 42, 120, 0.4);
+}
+
+.save-feedback {
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+.save-feedback.success {
+    color: #5fe3b1;
+}
+
+.save-feedback.error {
+    color: #ff8b8b;
+}
+
+.save-feedback.info {
+    color: #8ecae6;
+}
+
+.save-feedback.hidden {
+    display: none !important;
 }
 
 canvas {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 28px 55px rgba(8, 12, 52, 0.55);
+    border-radius: 24px;
+    border: 1px solid rgba(126, 140, 220, 0.35);
 }

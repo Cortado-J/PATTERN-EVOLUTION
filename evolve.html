@@ -7,7 +7,19 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="pattern-toolbar" role="region" aria-label="Pattern save controls">
+    <div class="save-guidance">
+      <p class="save-instructions primary">Double-click a tile to choose it, then press save.</p>
+      <p class="save-instructions secondary">The highlighted tile is what will be saved. Hover to preview full size.</p>
+    </div>
+    <div class="save-controls">
+      <span id="save-target-label" class="save-target-label inactive">Defaulting to the most recent tile.</span>
+      <button type="button" id="save-pattern" class="save-pattern-btn">Save pattern</button>
+      <span id="save-feedback" class="save-feedback hidden" role="status" aria-live="polite"></span>
+    </div>
+  </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+  <script src="pattern_storage.js?v=1005"></script>
   <script src="wallpaper_guides.js?v=1005"></script>
   <script src="wallpaper_groups.js?v=1005"></script>
   <script src="wallpaper_math.js?v=1005"></script>
